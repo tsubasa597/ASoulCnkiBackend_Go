@@ -1,8 +1,6 @@
 package v1
 
 import (
-	"fmt"
-
 	"github.com/tsubasa597/ASoulCnkiBackend/comments"
 	"github.com/tsubasa597/ASoulCnkiBackend/db"
 
@@ -13,8 +11,7 @@ import (
 
 func Update(ctx *gin.Context) {
 	users := db.Get(&db.User{}).(*[]db.User)
-	fmt.Println(users)
 	for _, v := range *users {
-		comments.Update(v, logrus.NewEntry(log.NewLog()))
+		go comments.Update(v, logrus.NewEntry(log.NewLog()))
 	}
 }

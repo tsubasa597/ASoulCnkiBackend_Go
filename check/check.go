@@ -2,6 +2,7 @@ package check
 
 import (
 	"container/heap"
+	"strings"
 	"sync"
 	"unicode/utf8"
 
@@ -10,14 +11,17 @@ import (
 )
 
 var (
-	data   sync.Map
-	length int
+	comments sync.Map
+	emotes   sync.Map
 )
 
 func Init() {
 	for _, v := range *db.Get(db.Comment{}).(*[]db.Comment) {
-		data.Store(v.ID, HashSet(v.Comment))
-		length++
+		comments.Store(v.ID, HashSet(v.Comment))
+	}
+
+	for _, v := range *db.Get(db.Emote{}).(*[]db.Emote) {
+		emotes.Store(v.EmoteText, string(v.EmoteID))
 	}
 }
 
@@ -26,10 +30,27 @@ type Result struct {
 	Similarity float64
 }
 
+func ReplaceStr(s string) string {
+	emotes.Range(func(key, value interface{}) bool {
+		s = strings.Replace(s, key.(string), value.(string), -1)
+		return true
+	})
+	return s
+}
+
+func ReplaceRune(s string) string {
+	emotes.Range(func(key, value interface{}) bool {
+		s = strings.Replace(s, value.(string), key.(string), -1)
+		return true
+	})
+	return s
+}
+
 func Compare(s string) []Result {
 	h1 := Hash(s)
-	comResults := make(CompareResults, 0, length)
-	data.Range(func(key, value interface{}) bool {
+
+	comResults := make(CompareResults, 0, conf.HeapLength)
+	comments.Range(func(key, value interface{}) bool {
 		set := make(Set)
 		count := 0.0
 		charNum := utf8.RuneCountInString(s)
@@ -66,6 +87,8 @@ func Compare(s string) []Result {
 		}
 
 		db.Find(comm)
+
+		comm.Comment = ReplaceRune(comm.Comment)
 		result = append(result, Result{
 			Comment:    *comm,
 			Similarity: v.Similarity,

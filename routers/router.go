@@ -22,6 +22,7 @@ func Init() *gin.Engine {
 	{
 		apiV1.GET("/check", v1.Check)
 		apiV1.GET("/update", v1.Update)
+		apiV1.GET("/status", v1.Satus)
 	}
 	return router
 }

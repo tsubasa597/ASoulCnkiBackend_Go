@@ -11,6 +11,7 @@ import (
 
 func Check(ctx *gin.Context) {
 	text := ctx.Query("text")
+	text = check.ReplaceStr(text)
 	if utf8.RuneCountInString(text) < 8 {
 		ctx.JSON(http.StatusOK, gin.H{
 			"message": "参数错误",

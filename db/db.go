@@ -9,6 +9,7 @@ import (
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 	"gorm.io/plugin/dbresolver"
 )
 
@@ -35,7 +36,7 @@ func OpenDB() (err error) {
 				conf.User, conf.Password, conf.Host, conf.DBName)),
 			&gorm.Config{})
 	} else {
-		err = fmt.Errorf("没有指定数据库")
+		err = fmt.Errorf(ErrHasNoDataBase)
 		return
 	}
 
@@ -58,10 +59,11 @@ func OpenDB() (err error) {
 		db.AutoMigrate(&User{})
 		fmt.Println(Add(&User{
 			UID:             672328094,
-			LastDynamicTime: 1626500626,
+			LastDynamicTime: 1626500626, // 99164512 3 M
+
 		}))
 	}
-	db.AutoMigrate(&Comment{}, &Dynamic{})
+	db.AutoMigrate(&Comment{}, &Dynamic{}, &Emote{})
 
 	return nil
 }
@@ -80,13 +82,18 @@ func Get(model Modeler) interface{} {
 
 func Find(model Modeler) error {
 	if db.Where(model).Find(model).RowsAffected == 0 {
-		return fmt.Errorf("不存在")
+		return fmt.Errorf(ErrNotFound)
 	}
 	return db.Error
 }
 
 func Add(model Modeler) error {
-	return db.Create(model).Error
+	if conf.SQL == "mysql" {
+		return db.Clauses(clause.Insert{Modifier: "IGNORE"}).Create(model).Error
+	} else if conf.SQL == "sqllite" {
+		return db.Clauses(clause.Insert{Modifier: "OR IGNORE"}).Create(model).Error
+	}
+	return fmt.Errorf(ErrHasNoDataBase)
 }
 
 func Update(model Modeler) error {
@@ -96,3 +103,8 @@ func Update(model Modeler) error {
 func Delete(model Modeler) error {
 	return db.Delete(model).Error
 }
+
+const (
+	ErrNotFound      = "不存在"
+	ErrHasNoDataBase = "没有指定数据库"
+)
