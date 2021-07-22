@@ -27,7 +27,8 @@ type Model struct {
 	UpdateAt time.Time `json:"-" gorm:"autoUpdateTime"`
 }
 
-func OpenDB() (err error) {
+func init() {
+	var err error
 	if conf.SQL == "sqllite" {
 		db, err = gorm.Open(sqlite.Open("comment.db"), &gorm.Config{})
 	} else if conf.SQL == "mysql" {
@@ -36,12 +37,11 @@ func OpenDB() (err error) {
 				conf.User, conf.Password, conf.Host, conf.DBName)),
 			&gorm.Config{})
 	} else {
-		err = fmt.Errorf(ErrHasNoDataBase)
-		return
+		panic(ErrHasNoDataBase)
 	}
 
 	if err != nil {
-		return
+		panic(err)
 	}
 
 	db.Use(dbresolver.Register(dbresolver.Config{}).
@@ -65,7 +65,6 @@ func OpenDB() (err error) {
 	}
 	db.AutoMigrate(&Comment{}, &Dynamic{}, &Emote{})
 
-	return nil
 }
 
 func MigrateAll(models []Modeler) {

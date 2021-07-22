@@ -1,4 +1,4 @@
-package check
+package comment
 
 import (
 	"math"
@@ -15,13 +15,7 @@ func Hash(s string) []int64 {
 	for i := 0; i < utf8.RuneCountInString(s)-conf.DefaultK+1; i++ {
 		var ans int64
 		for j, v := range ([]rune(s))[i : i+conf.DefaultK] {
-			// if utf8.RuneLen(v) == 4 {
-			// 	r1, r2 := utf16.EncodeRune(v)
-			// 	ans += int64(r1)*int64(math.Pow(conf.DefaultB, float64(conf.DefaultK-1-j))) +
-			// 		int64(r2)*int64(math.Pow(conf.DefaultB, float64(conf.DefaultK-1-j)))
-			// } else {
 			ans += int64(v) * int64(math.Pow(conf.DefaultB, float64(conf.DefaultK-1-j)))
-			// }
 		}
 		hashs[i] = ans
 	}
@@ -33,13 +27,7 @@ func HashSet(s string) Set {
 	for i := 0; i < utf8.RuneCountInString(s)-conf.DefaultK+1; i++ {
 		var ans int64
 		for j, v := range ([]rune(s))[i : i+conf.DefaultK] {
-			// if utf8.RuneLen(v) == 4 {
-			// 	r1, r2 := utf16.EncodeRune(v)
-			// 	ans += int64(r1)*int64(math.Pow(conf.DefaultB, float64(conf.DefaultK-1-j))) +
-			// 		int64(r2)*int64(math.Pow(conf.DefaultB, float64(conf.DefaultK-1-j)))
-			// } else {
 			ans += int64(v) * int64(math.Pow(conf.DefaultB, float64(conf.DefaultK-1-j)))
-			// }
 		}
 		hashs[ans] = struct{}{}
 	}

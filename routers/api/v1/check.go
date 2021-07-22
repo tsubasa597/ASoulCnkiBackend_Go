@@ -4,14 +4,14 @@ import (
 	"net/http"
 	"unicode/utf8"
 
-	"github.com/tsubasa597/ASoulCnkiBackend/check"
-
 	"github.com/gin-gonic/gin"
+	"github.com/tsubasa597/ASoulCnkiBackend/comment"
 )
 
+// 字符串中带有 % 会解析错误
 func Check(ctx *gin.Context) {
-	text := ctx.Query("text")
-	text = check.ReplaceStr(text)
+	text := comment.ReplaceStr(ctx.Query("text"))
+
 	if utf8.RuneCountInString(text) < 8 {
 		ctx.JSON(http.StatusOK, gin.H{
 			"message": "参数错误",
@@ -19,6 +19,6 @@ func Check(ctx *gin.Context) {
 		return
 	}
 	ctx.JSON(http.StatusOK, gin.H{
-		"res": check.Compare(text),
+		"res": comment.Compare(text),
 	})
 }

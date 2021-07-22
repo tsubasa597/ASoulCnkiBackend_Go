@@ -1,29 +1,13 @@
-package check
+package comment
 
 import (
 	"container/heap"
 	"strings"
-	"sync"
 	"unicode/utf8"
 
 	"github.com/tsubasa597/ASoulCnkiBackend/conf"
 	"github.com/tsubasa597/ASoulCnkiBackend/db"
 )
-
-var (
-	comments sync.Map
-	emotes   sync.Map
-)
-
-func Init() {
-	for _, v := range *db.Get(db.Comment{}).(*[]db.Comment) {
-		comments.Store(v.ID, HashSet(v.Comment))
-	}
-
-	for _, v := range *db.Get(db.Emote{}).(*[]db.Emote) {
-		emotes.Store(v.EmoteText, string(v.EmoteID))
-	}
-}
 
 type Result struct {
 	Comment    db.Comment
@@ -31,7 +15,7 @@ type Result struct {
 }
 
 func ReplaceStr(s string) string {
-	emotes.Range(func(key, value interface{}) bool {
+	emoteCache.Range(func(key, value interface{}) bool {
 		s = strings.Replace(s, key.(string), value.(string), -1)
 		return true
 	})
@@ -39,7 +23,7 @@ func ReplaceStr(s string) string {
 }
 
 func ReplaceRune(s string) string {
-	emotes.Range(func(key, value interface{}) bool {
+	emoteCache.Range(func(key, value interface{}) bool {
 		s = strings.Replace(s, value.(string), key.(string), -1)
 		return true
 	})
@@ -49,8 +33,8 @@ func ReplaceRune(s string) string {
 func Compare(s string) []Result {
 	h1 := Hash(s)
 
-	comResults := make(CompareResults, 0, conf.HeapLength)
-	comments.Range(func(key, value interface{}) bool {
+	commResults := make(CompareResults, 0, conf.HeapLength)
+	commCache.Range(func(key, value interface{}) bool {
 		set := make(Set)
 		count := 0.0
 		charNum := utf8.RuneCountInString(s)
@@ -67,15 +51,15 @@ func Compare(s string) []Result {
 			}
 		}
 
-		heap.Push(&comResults, CompareResult{
-			ID:         key.(uint64),
+		heap.Push(&commResults, CompareResult{
+			ID:         key.(db.Comment).ID,
 			Similarity: count / float64(charNum),
 		})
 		return true
 	})
 
 	result := make([]Result, 0, conf.HeapLength)
-	for _, v := range comResults {
+	for _, v := range commResults {
 		if v.Similarity < 0.2 {
 			continue
 		}

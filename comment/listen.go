@@ -1,4 +1,4 @@
-package comments
+package comment
 
 import (
 	"github.com/sirupsen/logrus"

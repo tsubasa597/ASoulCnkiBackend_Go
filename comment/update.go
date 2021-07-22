@@ -1,4 +1,4 @@
-package comments
+package comment
 
 import (
 	"strings"
@@ -13,7 +13,30 @@ import (
 	"github.com/tsubasa597/BILIBILI-HELPER/info"
 )
 
-// TODO: 导入缓存
+type queue []*info.Dynamic
+
+func (q *queue) pop() *info.Dynamic {
+	n := len(*q)
+	if n != 0 {
+		d := (*q)[n-1]
+		*q = (*q)[:n-1]
+		return d
+	} else {
+		return nil
+	}
+}
+
+func (q *queue) push(dynamic *info.Dynamic) {
+	*q = append(*q, dynamic)
+}
+
+var (
+	replacer = strings.NewReplacer("\n", "", " ", "")
+	started  bool
+	wait     int
+	wg       = &sync.WaitGroup{}
+)
+
 func Update(user db.User, log *logrus.Entry) {
 	if started {
 		return
@@ -24,7 +47,7 @@ func Update(user db.User, log *logrus.Entry) {
 		offect    int64
 		timestamp = user.LastDynamicTime
 		q         = make(queue, 0)
-		ch        = make(chan db.Comments, 1)
+		ch        = make(chan db.Modeler, 1)
 	)
 
 	wg.Add(1)
@@ -56,7 +79,7 @@ func Update(user db.User, log *logrus.Entry) {
 
 		for info := q.pop(); info != nil; info = q.pop() {
 			wg.Add(1)
-			go Add(info.RID, info.CommentType, ch, log)
+			go add(info.RID, info.CommentType, ch, log)
 
 			user.LastDynamicTime = info.Time
 			log.Infoln("Update User Error: ", db.Update(user))
@@ -70,12 +93,12 @@ func Update(user db.User, log *logrus.Entry) {
 		}
 	}()
 
-	started = false
 	wg.Wait()
+	started = false
 	close(ch)
 }
 
-func Add(commentID int64, commentType uint8, ch chan<- db.Comments, log *logrus.Entry) {
+func add(commentID int64, commentType uint8, ch chan<- db.Modeler, log *logrus.Entry) {
 	for i := 1; true; i++ {
 		comments, err := api.GetComments(commentType, commentID, conf.DefaultPS, i)
 		if err != nil {
@@ -100,27 +123,27 @@ func Add(commentID int64, commentType uint8, ch chan<- db.Comments, log *logrus.
 				s = strings.Replace(s, k, string(v.Id), -1)
 				emote = k + ","
 
-				err = db.Find(&db.Emote{
+				if _, ok := emoteCache.Load(k); ok {
+					continue
+				}
+				emoteCache.Store(k, string(v.Id))
+				ch <- &db.Emote{
 					EmoteID:   v.Id,
 					EmoteText: k,
-				})
-				if err != nil && err.Error() == db.ErrNotFound {
-					log.Info("Add Emote Error : ", db.Add(&db.Emote{
-						EmoteID:   v.Id,
-						EmoteText: k,
-					}))
 				}
-
 			}
 
-			comm = append(comm, &db.Comment{
+			c := &db.Comment{
 				UID:       comment.Mid,
 				UName:     comment.Member.Uname,
 				Comment:   s,
 				CommentID: commentID,
 				Time:      comment.Ctime,
 				Emote:     emote,
-			})
+			}
+
+			commCache.Store(c, HashSet(s))
+			comm = append(comm, c)
 		}
 		ch <- comm
 	}
@@ -131,28 +154,4 @@ func Add(commentID int64, commentType uint8, ch chan<- db.Comments, log *logrus.
 
 func Status() (bool, int) {
 	return started, wait
-}
-
-var (
-	replacer = strings.NewReplacer("\n", "", " ", "")
-	started  bool
-	wait     int
-	wg       = &sync.WaitGroup{}
-)
-
-type queue []*info.Dynamic
-
-func (q *queue) pop() *info.Dynamic {
-	n := len(*q)
-	if n != 0 {
-		d := (*q)[n-1]
-		*q = (*q)[:n-1]
-		return d
-	} else {
-		return nil
-	}
-}
-
-func (q *queue) push(dynamic *info.Dynamic) {
-	*q = append(*q, dynamic)
 }
