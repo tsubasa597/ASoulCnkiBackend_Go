@@ -4,10 +4,11 @@ import (
 	"container/heap"
 
 	"github.com/tsubasa597/ASoulCnkiBackend/conf"
+	"github.com/tsubasa597/ASoulCnkiBackend/db"
 )
 
 type CompareResult struct {
-	ID         uint64
+	Comm       *db.Comment
 	Similarity float64
 }
 
@@ -21,7 +22,7 @@ func (r CompareResults) Len() int {
 
 func (r CompareResults) Less(i, j int) bool {
 	if r[i].Similarity == r[j].Similarity {
-		return r[i].ID < r[j].ID
+		return r[i].Comm.Time < r[j].Comm.Time
 	}
 	return r[i].Similarity > r[j].Similarity
 }

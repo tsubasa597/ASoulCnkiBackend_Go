@@ -1,6 +1,8 @@
 package v1
 
 import (
+	"net/http"
+
 	"github.com/tsubasa597/ASoulCnkiBackend/comment"
 	"github.com/tsubasa597/ASoulCnkiBackend/db"
 
@@ -14,4 +16,8 @@ func Update(ctx *gin.Context) {
 	for _, v := range *users {
 		go comment.Update(v, logrus.NewEntry(log.NewLog()))
 	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"code": "ok",
+	})
 }

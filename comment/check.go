@@ -9,11 +9,6 @@ import (
 	"github.com/tsubasa597/ASoulCnkiBackend/db"
 )
 
-type Result struct {
-	Comment    db.Comment
-	Similarity float64
-}
-
 func ReplaceStr(s string) string {
 	emoteCache.Range(func(key, value interface{}) bool {
 		s = strings.Replace(s, key.(string), value.(string), -1)
@@ -30,7 +25,7 @@ func ReplaceRune(s string) string {
 	return s
 }
 
-func Compare(s string) []Result {
+func Compare(s string) CompareResults {
 	h1 := Hash(s)
 
 	commResults := make(CompareResults, 0, conf.HeapLength)
@@ -52,32 +47,19 @@ func Compare(s string) []Result {
 		}
 
 		heap.Push(&commResults, CompareResult{
-			ID:         key.(db.Comment).ID,
+			Comm:       key.(*db.Comment),
 			Similarity: count / float64(charNum),
 		})
 		return true
 	})
 
-	result := make([]Result, 0, conf.HeapLength)
-	for _, v := range commResults {
+	for i, v := range commResults {
 		if v.Similarity < 0.2 {
-			continue
+			return commResults[:i]
 		}
 
-		comm := &db.Comment{
-			Model: db.Model{
-				ID: v.ID,
-			},
-		}
-
-		db.Find(comm)
-
-		comm.Comment = ReplaceRune(comm.Comment)
-		result = append(result, Result{
-			Comment:    *comm,
-			Similarity: v.Similarity,
-		})
+		v.Comm.Comment = ReplaceRune(v.Comm.Comment)
 	}
 
-	return result
+	return commResults
 }

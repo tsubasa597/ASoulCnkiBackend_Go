@@ -59,8 +59,7 @@ func init() {
 		db.AutoMigrate(&User{})
 		fmt.Println(Add(&User{
 			UID:             672328094,
-			LastDynamicTime: 1626500626, // 99164512 3 M
-
+			LastDynamicTime: 1626618317, // 99164512 3 M
 		}))
 	}
 	db.AutoMigrate(&Comment{}, &Dynamic{}, &Emote{})

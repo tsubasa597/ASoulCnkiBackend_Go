@@ -73,7 +73,7 @@ func Update(user db.User, log *logrus.Entry) {
 
 				q.push(&info)
 				wait++
-				offect = info.RID
+				offect = info.DynamicID
 			}
 		}
 
@@ -94,6 +94,7 @@ func Update(user db.User, log *logrus.Entry) {
 	}()
 
 	wg.Wait()
+	InitCache()
 	started = false
 	close(ch)
 }
@@ -118,10 +119,8 @@ func add(commentID int64, commentType uint8, ch chan<- db.Modeler, log *logrus.E
 			}
 
 			s := replacer.Replace(comment.Content.Message)
-			var emote string
 			for k, v := range comment.Content.Emote {
 				s = strings.Replace(s, k, string(v.Id), -1)
-				emote = k + ","
 
 				if _, ok := emoteCache.Load(k); ok {
 					continue
@@ -133,17 +132,13 @@ func add(commentID int64, commentType uint8, ch chan<- db.Modeler, log *logrus.E
 				}
 			}
 
-			c := &db.Comment{
+			comm = append(comm, &db.Comment{
 				UID:       comment.Mid,
 				UName:     comment.Member.Uname,
 				Comment:   s,
 				CommentID: commentID,
 				Time:      comment.Ctime,
-				Emote:     emote,
-			}
-
-			commCache.Store(c, HashSet(s))
-			comm = append(comm, c)
+			})
 		}
 		ch <- comm
 	}

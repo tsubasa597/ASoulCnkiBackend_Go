@@ -15,7 +15,8 @@ func InitCache() {
 	emoteCache.New()
 
 	for _, v := range *db.Get(db.Comment{}).(*[]db.Comment) {
-		commCache.Store(v, HashSet(v.Comment))
+		c := v
+		commCache.Store(&c, HashSet(v.Comment))
 	}
 
 	for _, v := range *db.Get(db.Emote{}).(*[]db.Emote) {

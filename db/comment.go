@@ -7,7 +7,6 @@ type Comment struct {
 	Comment   string `json:"comment" gorm:"column:comment;uniqueIndex"`
 	CommentID int64  `json:"comment_id" gorm:"column:comment_id"`
 	Time      int64  `json:"comment_time" gorm:"column:time"`
-	Emote     string `json:"-" gorm:"column:emote"`
 }
 
 var _ Modeler = (*Comment)(nil)
