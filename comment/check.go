@@ -10,7 +10,7 @@ import (
 )
 
 func ReplaceStr(s string) string {
-	emoteCache.Range(func(key, value interface{}) bool {
+	caches.Emote.Range(func(key, value interface{}) bool {
 		s = strings.Replace(s, key.(string), value.(string), -1)
 		return true
 	})
@@ -18,7 +18,7 @@ func ReplaceStr(s string) string {
 }
 
 func ReplaceRune(s string) string {
-	emoteCache.Range(func(key, value interface{}) bool {
+	caches.Emote.Range(func(key, value interface{}) bool {
 		s = strings.Replace(s, value.(string), key.(string), -1)
 		return true
 	})
@@ -26,39 +26,33 @@ func ReplaceRune(s string) string {
 }
 
 func Compare(s string) CompareResults {
-	h1 := Hash(s)
-
 	commResults := make(CompareResults, 0, conf.HeapLength)
-	commCache.Range(func(key, value interface{}) bool {
-		set := make(Set)
-		count := 0.0
-		charNum := utf8.RuneCountInString(s)
-		for i := 0; i < charNum-conf.DefaultK+1; i++ {
-			if _, ok := value.(Set)[h1[i]]; ok {
-				for j := 0; j < conf.DefaultK; j++ {
-					set[int64(i+j)] = struct{}{}
-				}
-			}
-		}
-		for i := 0; i < charNum; i++ {
-			if _, ok := set[int64(i)]; ok {
-				count++
-			}
-		}
 
-		heap.Push(&commResults, CompareResult{
-			Comm:       key.(*db.Comment),
-			Similarity: count / float64(charNum),
-		})
-		return true
-	})
+	counts := make(map[int64]float64)
+	for _, v := range Hash(s) {
+		if uids, ok := caches.Comm.Load(v); ok {
+			for uid := range *uids.(*Set) {
+				counts[uid] += 1.0
+			}
+		}
+	}
+
+	for uid, count := range counts {
+		charNum := utf8.RuneCountInString(s)
+		if comm, ok := caches.Reply.Load(uid); ok && utf8.RuneCountInString(comm.(*db.Comment).Comment) >= charNum {
+			heap.Push(&commResults, CompareResult{
+				Comment:    comm.(*db.Comment),
+				Similarity: count / float64(utf8.RuneCountInString(comm.(*db.Comment).Comment)-conf.DefaultK+1),
+			})
+		}
+	}
 
 	for i, v := range commResults {
 		if v.Similarity < 0.2 {
 			return commResults[:i]
 		}
 
-		v.Comm.Comment = ReplaceRune(v.Comm.Comment)
+		v.Comment.Comment = ReplaceRune(v.Comment.Comment)
 	}
 
 	return commResults

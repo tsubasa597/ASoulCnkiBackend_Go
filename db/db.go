@@ -55,21 +55,34 @@ func init() {
 		db.Debug()
 	}
 
+	migrateTable()
+}
+
+func migrateTable() {
 	if !db.Migrator().HasTable(&User{}) {
 		db.AutoMigrate(&User{})
 		fmt.Println(Add(&User{
+			UID:             351609538,
+			LastDynamicTime: 1606403616, // 1627381252
+		}))
+		fmt.Println(Add(&User{
 			UID:             672328094,
-			LastDynamicTime: 1626618317, // 99164512 3 M
+			LastDynamicTime: 1606133780, // 1627381148
+		}))
+		fmt.Println(Add(&User{
+			UID:             672353429,
+			LastDynamicTime: 1606403340,
+		}))
+		fmt.Println(Add(&User{
+			UID:             672346917,
+			LastDynamicTime: 1606403478,
+		}))
+		fmt.Println(Add(&User{
+			UID:             672342685,
+			LastDynamicTime: 1606403225,
 		}))
 	}
 	db.AutoMigrate(&Comment{}, &Dynamic{}, &Emote{})
-
-}
-
-func MigrateAll(models []Modeler) {
-	for _, v := range models {
-		db.AutoMigrate(v)
-	}
 }
 
 func Get(model Modeler) interface{} {
@@ -87,9 +100,13 @@ func Find(model Modeler) error {
 
 func Add(model Modeler) error {
 	if conf.SQL == "mysql" {
-		return db.Clauses(clause.Insert{Modifier: "IGNORE"}).Create(model).Error
+		return db.Clauses(clause.Insert{
+			Modifier: "IGNORE",
+		}).Create(model).Error
 	} else if conf.SQL == "sqllite" {
-		return db.Clauses(clause.Insert{Modifier: "OR IGNORE"}).Create(model).Error
+		return db.Clauses(clause.Insert{
+			Modifier: "OR IGNORE",
+		}).Create(model).Error
 	}
 	return fmt.Errorf(ErrHasNoDataBase)
 }

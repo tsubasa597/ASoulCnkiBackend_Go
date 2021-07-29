@@ -1,152 +1,182 @@
 package comment
 
 import (
+	"context"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"unicode/utf8"
 
 	"github.com/tsubasa597/ASoulCnkiBackend/conf"
 	"github.com/tsubasa597/ASoulCnkiBackend/db"
+	"golang.org/x/sync/semaphore"
 
 	"github.com/sirupsen/logrus"
 	"github.com/tsubasa597/BILIBILI-HELPER/api"
-	"github.com/tsubasa597/BILIBILI-HELPER/info"
 )
-
-type queue []*info.Dynamic
-
-func (q *queue) pop() *info.Dynamic {
-	n := len(*q)
-	if n != 0 {
-		d := (*q)[n-1]
-		*q = (*q)[:n-1]
-		return d
-	} else {
-		return nil
-	}
-}
-
-func (q *queue) push(dynamic *info.Dynamic) {
-	*q = append(*q, dynamic)
-}
 
 var (
-	replacer = strings.NewReplacer("\n", "", " ", "")
-	started  bool
-	wait     int
-	wg       = &sync.WaitGroup{}
+	replacer           = strings.NewReplacer("\n", "", " ", "")
+	currentLimit       = semaphore.NewWeighted(weight * 10)
+	ctx                = context.Background()
+	weight       int64 = 1
+	started      bool
+	wait         int32
 )
 
-func Update(user db.User, log *logrus.Entry) {
+func Update(log *logrus.Entry) {
 	if started {
 		return
 	}
 
 	started = true
+
 	var (
-		offect    int64
-		timestamp = user.LastDynamicTime
-		q         = make(queue, 0)
-		ch        = make(chan db.Modeler, 1)
+		canCtx, cancle  = context.WithCancel(ctx)
+		chAdd, chUpdate = make(chan db.Modeler), make(chan db.Modeler)
+		wg              = &sync.WaitGroup{}
 	)
 
-	wg.Add(1)
-	go func() {
-	CommentTag:
+	go func(ctx context.Context) {
 		for {
-			resp, err := api.GetDynamicSrvSpaceHistory(user.UID, offect)
+			select {
+			case <-ctx.Done():
+				return
+			case data := <-chAdd:
+				log.Info("Add Error: ", db.Add(data))
+			case data := <-chUpdate:
+				log.Info("Update Error: ", db.Update(data))
+			}
+
+		}
+	}(canCtx)
+
+	users := *db.Get(&db.User{}).(*[]db.User)
+
+	for _, user := range users {
+		wg.Add(1)
+		go UpdateDynamic(user, chAdd, chUpdate, wg, log)
+	}
+	wg.Wait()
+
+	for _, dynamic := range *(db.Dynamic{}.Find([]interface{}{"is_update <> 1"})).(*[]db.Dynamic) {
+		wg.Add(1)
+		go UpdateComment(dynamic, chAdd, chUpdate, wg, log)
+	}
+	wg.Wait()
+
+	LoadCache()
+	started = false
+	cancle()
+	defer close(chAdd)
+	defer close(chUpdate)
+}
+
+func UpdateDynamic(user db.User, chAdd chan<- db.Modeler, chUpdate chan<- db.Modeler, wg *sync.WaitGroup, log *logrus.Entry) {
+	atomic.AddInt32(&wait, 1)
+	currentLimit.Acquire(ctx, weight)
+	var (
+		timestamp int32 = user.LastDynamicTime
+		offect    int64
+	)
+
+	for {
+		resp, err := api.GetDynamicSrvSpaceHistory(user.UID, offect)
+		if err != nil || resp.Data.HasMore != 1 {
+			log.Errorln("Func Update api.GetDynamicSrvSpaceHistory Error : ", err, " ", resp.Message)
+
+			atomic.AddInt32(&wait, -1)
+			currentLimit.Release(weight)
+			wg.Done()
+
+			return
+		}
+
+		for _, v := range resp.Data.Cards {
+			info, err := api.GetOriginCard(v)
 			if err != nil {
-				log.Errorln("Func Update api.GetDynamicSrvSpaceHistory Error : ", err)
+				log.Errorln("Func Update api.GetOriginCard Error : ", err, info.CommentType)
+				continue
+			}
+
+			if info.Time <= timestamp {
+				atomic.AddInt32(&wait, -1)
+				currentLimit.Release(weight)
+				wg.Done()
+
 				return
 			}
 
-			for _, v := range resp.Data.Cards {
-				info, err := api.GetOriginCard(v)
-				if err != nil {
-					log.Errorln("Func Update api.GetOriginCard Error : ", err)
-					return
-				}
-
-				if info.Time <= timestamp {
-					break CommentTag
-				}
-
-				q.push(&info)
-				wait++
-				offect = info.DynamicID
+			chAdd <- &db.Dynamic{
+				UID:       user.UID,
+				DynamicID: info.DynamicID,
+				RID:       info.RID,
+				Type:      info.CommentType,
+				Time:      info.Time,
+				Updated:   false,
 			}
-		}
-
-		for info := q.pop(); info != nil; info = q.pop() {
-			wg.Add(1)
-			go add(info.RID, info.CommentType, ch, log)
 
 			user.LastDynamicTime = info.Time
-			log.Infoln("Update User Error: ", db.Update(user))
+			user.Name = info.Name
+			chUpdate <- &user
+			offect = info.DynamicID
 		}
-		wg.Done()
-	}()
-
-	go func() {
-		for v := range ch {
-			log.Info("Add Comment Error : ", db.Add(v))
-		}
-	}()
-
-	wg.Wait()
-	InitCache()
-	started = false
-	close(ch)
+	}
 }
 
-func add(commentID int64, commentType uint8, ch chan<- db.Modeler, log *logrus.Entry) {
+func UpdateComment(dynamic db.Dynamic, chAdd chan<- db.Modeler, chUpdate chan<- db.Modeler, wg *sync.WaitGroup, log *logrus.Entry) {
+	atomic.AddInt32(&wait, 1)
+	currentLimit.Acquire(ctx, weight)
+
 	for i := 1; true; i++ {
-		comments, err := api.GetComments(commentType, commentID, conf.DefaultPS, i)
+		comments, err := api.GetComments(dynamic.Type, 0, dynamic.RID, conf.DefaultPS, i)
 		if err != nil {
 			log.Errorln("Func Add api.GetComments Error : ", err)
 			continue
 		}
 
 		if comments.Code != 0 || len(comments.Data.Replies) == 0 {
-			log.Errorln("Func Add Code || Replies Error : ", comments.Message)
+			log.Errorln("Func Add Code || Replies Error : ", comments.Message, len(comments.Data.Replies), dynamic.Type, dynamic.RID, i)
 			break
 		}
 
 		comm := make(db.Comments, 0, len(comments.Data.Replies))
 		for _, comment := range comments.Data.Replies {
-			if utf8.RuneCountInString(comment.Content.Message) < conf.DefaultK {
-				continue
-			}
-
 			s := replacer.Replace(comment.Content.Message)
+
 			for k, v := range comment.Content.Emote {
 				s = strings.Replace(s, k, string(v.Id), -1)
 
-				if _, ok := emoteCache.Load(k); ok {
-					continue
-				}
-				emoteCache.Store(k, string(v.Id))
-				ch <- &db.Emote{
+				chAdd <- &db.Emote{
 					EmoteID:   v.Id,
 					EmoteText: k,
 				}
+			}
+
+			if utf8.RuneCountInString(s) < conf.DefaultK {
+				continue
 			}
 
 			comm = append(comm, &db.Comment{
 				UID:       comment.Mid,
 				UName:     comment.Member.Uname,
 				Comment:   s,
-				CommentID: commentID,
-				Time:      comment.Ctime,
+				CommentID: dynamic.RID,
+
+				Time: comment.Ctime,
 			})
 		}
-		ch <- comm
+		chAdd <- comm
 	}
 
+	dynamic.Updated = true
+	chUpdate <- &dynamic
+
+	atomic.AddInt32(&wait, -1)
+	currentLimit.Release(weight)
 	wg.Done()
-	wait--
 }
 
-func Status() (bool, int) {
+func Status() (bool, int32) {
 	return started, wait
 }

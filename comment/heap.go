@@ -8,7 +8,7 @@ import (
 )
 
 type CompareResult struct {
-	Comm       *db.Comment
+	Comment    *db.Comment
 	Similarity float64
 }
 
@@ -22,7 +22,7 @@ func (r CompareResults) Len() int {
 
 func (r CompareResults) Less(i, j int) bool {
 	if r[i].Similarity == r[j].Similarity {
-		return r[i].Comm.Time < r[j].Comm.Time
+		return r[i].Comment.Time < r[j].Comment.Time
 	}
 	return r[i].Similarity > r[j].Similarity
 }

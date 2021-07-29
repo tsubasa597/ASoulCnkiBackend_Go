@@ -8,7 +8,7 @@ type Comment struct {
 	data *sync.Map
 }
 
-var _ Cache = (*Comment)(nil)
+var _ Cacher = (*Comment)(nil)
 
 func (c Comment) Load(v interface{}) (interface{}, bool) {
 	return c.data.Load(v)

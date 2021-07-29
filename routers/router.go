@@ -11,7 +11,6 @@ func Init() *gin.Engine {
 	router := gin.New()
 	router.Use(gin.Logger())
 	router.Use(gin.Recovery())
-	router.MaxMultipartMemory = 100 << 20
 
 	apiV1 := router.Group("api/v1")
 	{

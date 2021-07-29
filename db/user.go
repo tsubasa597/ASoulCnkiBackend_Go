@@ -4,7 +4,7 @@ type User struct {
 	Model
 	UID             int64  `json:"uid" gorm:"column:uid"`
 	Name            string `json:"name" gorm:"column:name"`
-	LastDynamicTime int32  `json:"time" gorm:"column:time"`
+	LastDynamicTime int32  `json:"dynamic_time" gorm:"column:dynamic_time"`
 }
 
 var _ Modeler = (*User)(nil)

@@ -9,6 +9,7 @@ import (
 
 func Satus(ctx *gin.Context) {
 	started, wait := comment.Status()
+
 	ctx.JSON(http.StatusOK, gin.H{
 		"started": started,
 		"wait":    wait,

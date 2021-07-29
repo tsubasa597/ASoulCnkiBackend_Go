@@ -1,12 +1,14 @@
 package cache
 
-import "sync"
+import (
+	"sync"
+)
 
 type Emote struct {
 	data *sync.Map
 }
 
-var _ Cache = (*Emote)(nil)
+var _ Cacher = (*Emote)(nil)
 
 func (e Emote) Load(v interface{}) (interface{}, bool) {
 	return e.data.Load(v)
