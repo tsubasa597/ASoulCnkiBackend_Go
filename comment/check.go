@@ -10,39 +10,47 @@ import (
 )
 
 func ReplaceStr(s string) string {
-	caches.Emote.Range(func(key, value interface{}) bool {
-		s = strings.Replace(s, key.(string), value.(string), -1)
-		return true
-	})
+	for _, emote := range *db.Get(&db.Emote{}).(*[]db.Emote) {
+		s = strings.Replace(s, emote.EmoteText, string(emote.EmoteID), -1)
+	}
 	return s
 }
 
 func ReplaceRune(s string) string {
-	caches.Emote.Range(func(key, value interface{}) bool {
-		s = strings.Replace(s, value.(string), key.(string), -1)
-		return true
-	})
+	for _, emote := range *db.Get(&db.Emote{}).(*[]db.Emote) {
+		s = strings.Replace(s, string(emote.EmoteID), emote.EmoteText, -1)
+	}
+
 	return s
 }
 
 func Compare(s string) CompareResults {
 	commResults := make(CompareResults, 0, conf.HeapLength)
-
-	counts := make(map[int64]float64)
+	counts := make(map[uint64]float64)
 	for _, v := range Hash(s) {
 		if uids, ok := caches.Comm.Load(v); ok {
 			for uid := range *uids.(*Set) {
-				counts[uid] += 1.0
+				counts[uint64(uid)] += 1.0
 			}
 		}
 	}
 
-	for uid, count := range counts {
+	for id, count := range counts {
 		charNum := utf8.RuneCountInString(s)
-		if comm, ok := caches.Reply.Load(uid); ok && utf8.RuneCountInString(comm.(*db.Comment).Comment) >= charNum {
+
+		comm := &db.Comment{
+			Model: db.Model{
+				ID: id,
+			},
+		}
+		if err := db.Find(comm); err != nil {
+			continue
+		}
+
+		if utf8.RuneCountInString(comm.Comment) >= charNum {
 			heap.Push(&commResults, CompareResult{
-				Comment:    comm.(*db.Comment),
-				Similarity: count / float64(utf8.RuneCountInString(comm.(*db.Comment).Comment)-conf.DefaultK+1),
+				Comment:    comm,
+				Similarity: count / float64(utf8.RuneCountInString(comm.Comment)-conf.DefaultK+1),
 			})
 		}
 	}

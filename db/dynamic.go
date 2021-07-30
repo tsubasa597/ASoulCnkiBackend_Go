@@ -21,6 +21,9 @@ func (Dynamic) TableName() string {
 }
 
 func (dynamic Dynamic) Find(params []interface{}) interface{} {
+	mutex.Lock()
+	defer mutex.Unlock()
+
 	models := dynamic.getModels()
 	db.Order("time asc").Find(models, params...)
 	return models

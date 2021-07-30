@@ -1,6 +1,8 @@
 package routers
 
 import (
+	"fmt"
+
 	"github.com/tsubasa597/ASoulCnkiBackend/comment"
 	v1 "github.com/tsubasa597/ASoulCnkiBackend/routers/api/v1"
 
@@ -18,6 +20,10 @@ func Init() *gin.Engine {
 		apiV1.POST("/check", v1.Check)
 		apiV1.GET("/status", v1.Satus)
 	}
+
 	comment.InitCache()
+	comment.LoadCache()
+	fmt.Println("All Done...")
+
 	return router
 }

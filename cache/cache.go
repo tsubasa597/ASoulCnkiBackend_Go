@@ -1,5 +1,7 @@
 package cache
 
+import "sync"
+
 type Cacher interface {
 	Load(interface{}) (interface{}, bool)
 	Store(interface{}, interface{})
@@ -11,6 +13,7 @@ type Cache struct {
 	Comm  Cacher
 	Emote Cacher
 	Reply Cacher
+	Once  sync.Once
 }
 
 func Init() *Cache {
@@ -18,6 +21,7 @@ func Init() *Cache {
 		Comm:  &Comment{},
 		Emote: &Emote{},
 		Reply: &Reply{},
+		Once:  sync.Once{},
 	}
 
 	c.Comm.New()

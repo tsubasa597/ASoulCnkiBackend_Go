@@ -19,6 +19,10 @@ var (
 	User           string
 	Password       string
 	DBName         string
+	Path           string
+	Satrt          bool
+	Duration       int64
+	GoroutineNum   int64
 )
 
 func init() {
@@ -39,4 +43,8 @@ func init() {
 	User = cfg.Section("sql").Key("USER").MustString("")
 	Password = cfg.Section("sql").Key("PASSWORD").MustString("")
 	DBName = cfg.Section("sql").Key("DBNAME").MustString("")
+	Path = cfg.Section("log").Key("PATH").MustString("./log")
+	Satrt = cfg.Section("listen").Key("SATRT").MustBool(true)
+	Duration = cfg.Section("listen").Key("DURATION").MustInt64(5)
+	GoroutineNum = cfg.Section("listen").Key("GOROUTINE_NUM").MustInt64(10)
 }

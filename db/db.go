@@ -2,6 +2,7 @@ package db
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/tsubasa597/ASoulCnkiBackend/conf"
@@ -14,7 +15,8 @@ import (
 )
 
 var (
-	db *gorm.DB
+	db    *gorm.DB
+	mutex sync.Mutex
 )
 
 type Modeler interface {
@@ -69,29 +71,36 @@ func migrateTable() {
 			UID:             672328094,
 			LastDynamicTime: 1606133780, // 1627381148
 		}))
-		fmt.Println(Add(&User{
-			UID:             672353429,
-			LastDynamicTime: 1606403340,
-		}))
-		fmt.Println(Add(&User{
-			UID:             672346917,
-			LastDynamicTime: 1606403478,
-		}))
-		fmt.Println(Add(&User{
-			UID:             672342685,
-			LastDynamicTime: 1606403225,
-		}))
+		// fmt.Println(Add(&User{
+		// 	UID:             672353429,
+		// 	LastDynamicTime: 1606403340,
+		// }))
+		// fmt.Println(Add(&User{
+		// 	UID:             672346917,
+		// 	LastDynamicTime: 1606403478,
+		// }))
+		// fmt.Println(Add(&User{
+		// 	UID:             672342685,
+		// 	LastDynamicTime: 1606403225,
+		// }))
 	}
 	db.AutoMigrate(&Comment{}, &Dynamic{}, &Emote{})
 }
 
 func Get(model Modeler) interface{} {
+	mutex.Lock()
+	defer mutex.Unlock()
+
 	models := model.getModels()
 	db.Find(models)
+
 	return models
 }
 
 func Find(model Modeler) error {
+	mutex.Lock()
+	defer mutex.Unlock()
+
 	if db.Where(model).Find(model).RowsAffected == 0 {
 		return fmt.Errorf(ErrNotFound)
 	}
@@ -99,6 +108,9 @@ func Find(model Modeler) error {
 }
 
 func Add(model Modeler) error {
+	mutex.Lock()
+	defer mutex.Unlock()
+
 	if conf.SQL == "mysql" {
 		return db.Clauses(clause.Insert{
 			Modifier: "IGNORE",
@@ -112,10 +124,16 @@ func Add(model Modeler) error {
 }
 
 func Update(model Modeler) error {
+	mutex.Lock()
+	defer mutex.Unlock()
+
 	return db.Updates(model).Error
 }
 
 func Delete(model Modeler) error {
+	mutex.Lock()
+	defer mutex.Unlock()
+
 	return db.Delete(model).Error
 }
 
