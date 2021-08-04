@@ -2,6 +2,8 @@ package comment
 
 import (
 	"context"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -23,7 +25,7 @@ type Listen struct {
 }
 
 func (lis Listen) Started() bool {
-	return lis.enable
+	return lis.enable || (atomic.LoadInt32(lis.Update.Started) == 1)
 }
 
 func (lis Listen) Add(user db.User) {
@@ -37,11 +39,11 @@ func (lis Listen) Add(user db.User) {
 		return
 	}
 
-	go lis.load(user.UID, ctx, ch)
+	go lis.load(user.UID, user.LastDynamicTime, ctx, ch)
 
 }
 
-func (lis Listen) load(uid int64, ctx context.Context, ch <-chan []info.Infoer) {
+func (lis Listen) load(uid int64, timestamp int32, ctx context.Context, ch <-chan []info.Infoer) {
 	for {
 		select {
 		case <-ctx.Done():
@@ -49,6 +51,11 @@ func (lis Listen) load(uid int64, ctx context.Context, ch <-chan []info.Infoer) 
 		case infos := <-ch:
 			for _, in := range infos {
 				dy := in.GetInstance().(info.Dynamic)
+
+				if timestamp >= dy.Time {
+					break
+				}
+
 				db.Add(&db.Dynamic{
 					UID:       uid,
 					DynamicID: dy.DynamicID,
@@ -65,17 +72,18 @@ func (lis Listen) load(uid int64, ctx context.Context, ch <-chan []info.Infoer) 
 func NewListen(log *logrus.Entry) *Listen {
 	var (
 		weight  int64 = 1
-		wait    int32 = 0
+		inx     int32 = 0
 		li, ctx       = listen.New(api.API{}, log)
 	)
 
 	listen := &Listen{
 		Update: Update{
-			CurrentLimit: semaphore.NewWeighted(weight * conf.GoroutineNum),
-			Weight:       weight,
+			currentLimit: semaphore.NewWeighted(weight * conf.GoroutineNum),
+			weight:       weight,
 			Ctx:          ctx,
-			Started:      false,
-			Wait:         &wait,
+			Started:      &inx,
+			Wait:         &inx,
+			wg:           &sync.WaitGroup{},
 			log:          log,
 		},
 		Duration: time.Duration(time.Minute * time.Duration(conf.Duration)),

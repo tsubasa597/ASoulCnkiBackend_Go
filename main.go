@@ -5,10 +5,12 @@ import (
 	"net/http"
 
 	"github.com/tsubasa597/ASoulCnkiBackend/comment"
+	"github.com/tsubasa597/ASoulCnkiBackend/conf"
 	"github.com/tsubasa597/ASoulCnkiBackend/routers"
 )
 
 func main() {
+	conf.WriteLog()
 	comment.InitCache()
 	fmt.Println("All Done...")
 

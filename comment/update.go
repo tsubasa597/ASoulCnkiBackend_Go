@@ -15,50 +15,67 @@ import (
 )
 
 type Update struct {
-	CurrentLimit *semaphore.Weighted
-	Weight       int64
-	Ctx          context.Context
-	Started      bool
+	Started      *int32
 	Wait         *int32
+	Ctx          context.Context
+	currentLimit *semaphore.Weighted
+	weight       int64
+	wg           *sync.WaitGroup
 	log          *logrus.Entry
 }
 
-func (update *Update) Do(users []db.User) {
-	if update.Started {
+func (update *Update) All() {
+	if atomic.LoadInt32(update.Started) == 1 {
 		return
 	}
 
-	update.Started = true
+	atomic.AddInt32(update.Started, 1)
 
-	var (
-		wg = &sync.WaitGroup{}
-	)
-
-	for _, user := range users {
-		wg.Add(1)
+	for _, user := range *db.Get(&db.User{}).(*[]db.User) {
+		update.wg.Add(1)
 		atomic.AddInt32(update.Wait, 1)
-		go update.UpdateDynamic(user, wg)
+		go update.dynamic(user)
 	}
-	wg.Wait()
+	update.wg.Wait()
 
 	for _, dynamic := range *(db.Dynamic{}.Find([]interface{}{"is_update <> true"})).(*[]db.Dynamic) {
-		wg.Add(1)
+		update.wg.Add(1)
 		atomic.AddInt32(update.Wait, 1)
-		go update.UpdateComment(dynamic, wg)
+		go update.comment(dynamic)
 	}
-	wg.Wait()
+	update.wg.Wait()
 
-	update.Started = false
+	atomic.AddInt32(update.Started, -1)
 }
 
-func (update Update) UpdateDynamic(user db.User, wg *sync.WaitGroup) {
-	update.CurrentLimit.Acquire(update.Ctx, update.Weight)
+func (update *Update) Dynamic() {
+	if atomic.LoadInt32(update.Started) == 1 {
+		return
+	}
+
+	atomic.AddInt32(update.Started, 1)
+
+	wg := &sync.WaitGroup{}
+
+	for _, user := range *db.Get(&db.User{}).(*[]db.User) {
+		wg.Add(1)
+		atomic.AddInt32(update.Wait, 1)
+		update.dynamic(user)
+	}
+
+	wg.Wait()
+	atomic.AddInt32(update.Started, -1)
+}
+
+func (update Update) dynamic(user db.User) {
+	update.currentLimit.Acquire(update.Ctx, update.weight)
 	var (
 		timestamp int32 = user.LastDynamicTime
 		offect    int64
 		dynamics  = make([]*db.Dynamic, 0)
 	)
 
+DynamicPage:
 	for {
 		resp, err := api.GetDynamicSrvSpaceHistory(user.UID, offect)
 		if err != nil || resp.Data.HasMore != 1 {
@@ -74,7 +91,7 @@ func (update Update) UpdateDynamic(user db.User, wg *sync.WaitGroup) {
 			}
 
 			if info.Time <= timestamp {
-				break
+				break DynamicPage
 			}
 
 			dynamics = append(dynamics, &db.Dynamic{
@@ -99,12 +116,28 @@ func (update Update) UpdateDynamic(user db.User, wg *sync.WaitGroup) {
 	}
 
 	atomic.AddInt32(update.Wait, -1)
-	update.CurrentLimit.Release(update.Weight)
-	wg.Done()
+	update.currentLimit.Release(update.weight)
+	update.wg.Done()
 }
 
-func (update Update) UpdateComment(dynamic db.Dynamic, wg *sync.WaitGroup) {
-	update.CurrentLimit.Acquire(update.Ctx, update.Weight)
+func (update *Update) Comment() {
+	if atomic.LoadInt32(update.Started) == 1 {
+		return
+	}
+
+	atomic.AddInt32(update.Started, 1)
+
+	for _, dynamic := range *(db.Dynamic{}.Find([]interface{}{"is_update <> true"})).(*[]db.Dynamic) {
+		update.wg.Add(1)
+		atomic.AddInt32(update.Wait, 1)
+		go update.comment(dynamic)
+	}
+	update.wg.Wait()
+	atomic.AddInt32(update.Started, -1)
+}
+
+func (update Update) comment(dynamic db.Dynamic) {
+	update.currentLimit.Acquire(update.Ctx, update.weight)
 
 	for i := 1; true; i++ {
 		comments, err := api.GetComments(dynamic.Type, 0, dynamic.RID, conf.DefaultPS, i)
@@ -147,6 +180,6 @@ func (update Update) UpdateComment(dynamic db.Dynamic, wg *sync.WaitGroup) {
 	db.Update(&dynamic)
 
 	atomic.AddInt32(update.Wait, -1)
-	update.CurrentLimit.Release(update.Weight)
-	wg.Done()
+	update.currentLimit.Release(update.weight)
+	update.wg.Done()
 }

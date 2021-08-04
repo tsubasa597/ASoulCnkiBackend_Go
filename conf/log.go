@@ -26,5 +26,4 @@ func WriteLog() {
 			logrus.FatalLevel: writer,
 		}, &logrus.JSONFormatter{},
 	))
-	logrus.SetOutput(writer)
 }
