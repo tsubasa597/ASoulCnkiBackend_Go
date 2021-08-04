@@ -2,7 +2,6 @@ package comment
 
 import (
 	"context"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"unicode/utf8"
@@ -16,14 +15,11 @@ import (
 )
 
 type Update struct {
-	Replacer     *strings.Replacer
 	CurrentLimit *semaphore.Weighted
 	Weight       int64
 	Ctx          context.Context
 	Started      bool
-	Wait         int32
-	chAdd        chan db.Modeler
-	chUpdate     chan db.Modeler
+	Wait         *int32
 	log          *logrus.Entry
 }
 
@@ -35,109 +31,101 @@ func (update *Update) Do(users []db.User) {
 	update.Started = true
 
 	var (
-		canCtx, cancle = context.WithCancel(update.Ctx)
-		wg             = &sync.WaitGroup{}
+		wg = &sync.WaitGroup{}
 	)
-
-	go update.LoadDB(canCtx)
 
 	for _, user := range users {
 		wg.Add(1)
-		go update.UpdateDynamic(user, update.chAdd, update.chUpdate, wg)
+		atomic.AddInt32(update.Wait, 1)
+		go update.UpdateDynamic(user, wg)
 	}
 	wg.Wait()
 
-	for _, dynamic := range *(db.Dynamic{}.Find([]interface{}{"is_update <> 1"})).(*[]db.Dynamic) {
+	for _, dynamic := range *(db.Dynamic{}.Find([]interface{}{"is_update <> true"})).(*[]db.Dynamic) {
 		wg.Add(1)
-		go update.UpdateComment(dynamic, update.chAdd, update.chUpdate, wg)
+		atomic.AddInt32(update.Wait, 1)
+		go update.UpdateComment(dynamic, wg)
 	}
 	wg.Wait()
 
-	LoadCache()
 	update.Started = false
-	cancle()
 }
 
-func (update Update) UpdateDynamic(user db.User, chAdd, chUpdate chan<- db.Modeler, wg *sync.WaitGroup) {
-	atomic.AddInt32(&update.Wait, 1)
+func (update Update) UpdateDynamic(user db.User, wg *sync.WaitGroup) {
 	update.CurrentLimit.Acquire(update.Ctx, update.Weight)
 	var (
 		timestamp int32 = user.LastDynamicTime
 		offect    int64
+		dynamics  = make([]*db.Dynamic, 0)
 	)
 
 	for {
 		resp, err := api.GetDynamicSrvSpaceHistory(user.UID, offect)
 		if err != nil || resp.Data.HasMore != 1 {
-			update.log.Errorln("Func Update api.GetDynamicSrvSpaceHistory Error : ", err, " ", resp.Message)
-
-			atomic.AddInt32(&update.Wait, -1)
-			update.CurrentLimit.Release(update.Weight)
-			wg.Done()
-
-			return
+			update.log.WithField("Func", "Update api.GetDynamicSrvSpaceHistory").Errorln(err, " ", resp.Message)
+			break
 		}
 
 		for _, v := range resp.Data.Cards {
 			info, err := api.GetOriginCard(v)
 			if err != nil {
-				update.log.Errorln("Func Update api.GetOriginCard Error : ", err, info.CommentType)
+				update.log.WithField("Func", "Update api.GetOriginCard").Errorln(err, info.CommentType)
 				continue
 			}
 
 			if info.Time <= timestamp {
-				atomic.AddInt32(&update.Wait, -1)
-				update.CurrentLimit.Release(update.Weight)
-				wg.Done()
-
-				return
+				break
 			}
 
-			chAdd <- &db.Dynamic{
+			dynamics = append(dynamics, &db.Dynamic{
 				UID:       user.UID,
 				DynamicID: info.DynamicID,
 				RID:       info.RID,
 				Type:      info.CommentType,
 				Time:      info.Time,
 				Updated:   false,
-			}
+			})
 
-			user.LastDynamicTime = info.Time
 			user.Name = info.Name
-			chUpdate <- &user
 			offect = info.DynamicID
 		}
 	}
+
+	for i := len(dynamics) - 1; i >= 0; i-- {
+		db.Add(dynamics[i])
+
+		user.LastDynamicTime = dynamics[i].Time
+		db.Update(&user)
+	}
+
+	atomic.AddInt32(update.Wait, -1)
+	update.CurrentLimit.Release(update.Weight)
+	wg.Done()
 }
 
-func (update Update) UpdateComment(dynamic db.Dynamic, chAdd, chUpdate chan<- db.Modeler, wg *sync.WaitGroup) {
-	atomic.AddInt32(&update.Wait, 1)
+func (update Update) UpdateComment(dynamic db.Dynamic, wg *sync.WaitGroup) {
 	update.CurrentLimit.Acquire(update.Ctx, update.Weight)
 
 	for i := 1; true; i++ {
 		comments, err := api.GetComments(dynamic.Type, 0, dynamic.RID, conf.DefaultPS, i)
 		if err != nil {
-			update.log.Errorln("Func Add api.GetComments Error : ", err)
+			update.log.WithField("Func", "UpdateComment api.GetComments").Errorln(err)
 			continue
 		}
 
-		if comments.Code != 0 || len(comments.Data.Replies) == 0 {
-			update.log.Errorln("Func Add Code || Replies Error : ", comments.Message, dynamic.Type, dynamic.RID, i)
+		if comments.Code != 0 {
+			update.log.WithField("Func", "UpdateComment Code").Errorln(comments.Message)
+			break
+		}
+
+		if len(comments.Data.Replies) == 0 {
+			update.log.WithField("Func", "UpdateComment Replies").Info(dynamic.Type, dynamic.RID, i)
 			break
 		}
 
 		comm := make(db.Comments, 0, len(comments.Data.Replies))
 		for _, comment := range comments.Data.Replies {
-			s := update.Replacer.Replace(comment.Content.Message)
-
-			for k, v := range comment.Content.Emote {
-				s = strings.Replace(s, k, string(v.Id), -1)
-
-				chAdd <- &db.Emote{
-					EmoteID:   v.Id,
-					EmoteText: k,
-				}
-			}
+			s := ReplaceStr(comment.Content.Message)
 
 			if utf8.RuneCountInString(s) < conf.DefaultK {
 				continue
@@ -148,35 +136,17 @@ func (update Update) UpdateComment(dynamic db.Dynamic, chAdd, chUpdate chan<- db
 				UName:     comment.Member.Uname,
 				Comment:   s,
 				CommentID: dynamic.RID,
-
-				Time: comment.Ctime,
+				Like:      uint32(comment.Like),
+				Time:      comment.Ctime,
 			})
 		}
-		chAdd <- comm
+		db.Add(comm)
 	}
 
 	dynamic.Updated = true
-	chUpdate <- &dynamic
+	db.Update(&dynamic)
 
-	atomic.AddInt32(&update.Wait, -1)
+	atomic.AddInt32(update.Wait, -1)
 	update.CurrentLimit.Release(update.Weight)
 	wg.Done()
-}
-
-func (update Update) LoadDB(ctx context.Context) {
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case data := <-update.chAdd:
-			if err := db.Add(data); err != nil {
-				update.log.Error("Add Error: ", err)
-			}
-
-		case data := <-update.chUpdate:
-			if err := db.Update(data); err != nil {
-				update.log.Error("Update Error: ", err)
-			}
-		}
-	}
 }

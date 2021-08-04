@@ -4,10 +4,10 @@ type Comment struct {
 	Model
 	UID       int64  `json:"uid" gorm:"column:uid"`
 	UName     string `json:"uname" gorm:"column:uname"`
-	Comment   string `json:"comment" gorm:"column:comment;uniqueIndex"`
+	Comment   string `json:"comment" gorm:"column:comment"`
 	CommentID int64  `json:"comment_id" gorm:"column:comment_id"`
 	Time      int64  `json:"comment_time" gorm:"column:time"`
-	// Like      uint32 `json:"like" gorm:"column:like"`
+	Like      uint32 `json:"like" gorm:"column:like"`
 }
 
 var _ Modeler = (*Comment)(nil)

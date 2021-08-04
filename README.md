@@ -7,12 +7,13 @@
 
 ## 使用方式
 - 启动程序
-- Get 请求 ```localhost:8080/api/v1/update``` 获取所有数据(估计运行时间: 2h)
+- Get 请求 ```localhost:8080/api/v1/update``` 获取所有数据
 - Post 请求 ```localhost:8080/api/v1/check``` 即可
 
 ## Todos
 - [x] 可在生产环境下使用
 - [x] 自动更新评论
 - [x] 优化数据库连接
+- [x] 优化自动更新
 - [ ] 兼容源项目接口
 - [ ] 枝江作文展

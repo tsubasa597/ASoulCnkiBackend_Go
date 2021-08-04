@@ -71,20 +71,20 @@ func migrateTable() {
 			UID:             672328094,
 			LastDynamicTime: 1606133780, // 1627381148
 		}))
-		// fmt.Println(Add(&User{
-		// 	UID:             672353429,
-		// 	LastDynamicTime: 1606403340,
-		// }))
-		// fmt.Println(Add(&User{
-		// 	UID:             672346917,
-		// 	LastDynamicTime: 1606403478,
-		// }))
-		// fmt.Println(Add(&User{
-		// 	UID:             672342685,
-		// 	LastDynamicTime: 1606403225,
-		// }))
+		fmt.Println(Add(&User{
+			UID:             672353429,
+			LastDynamicTime: 1606403340,
+		}))
+		fmt.Println(Add(&User{
+			UID:             672346917,
+			LastDynamicTime: 1606403478,
+		}))
+		fmt.Println(Add(&User{
+			UID:             672342685,
+			LastDynamicTime: 1606403225,
+		}))
 	}
-	db.AutoMigrate(&Comment{}, &Dynamic{}, &Emote{})
+	db.AutoMigrate(&Comment{}, &Dynamic{})
 }
 
 func Get(model Modeler) interface{} {

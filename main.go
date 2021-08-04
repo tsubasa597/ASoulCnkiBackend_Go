@@ -4,10 +4,14 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/tsubasa597/ASoulCnkiBackend/comment"
 	"github.com/tsubasa597/ASoulCnkiBackend/routers"
 )
 
 func main() {
+	comment.InitCache()
+	fmt.Println("All Done...")
+
 	eng := routers.Init()
 	s := &http.Server{
 		Addr:    fmt.Sprintf(":%d", 8000),

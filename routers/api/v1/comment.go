@@ -8,13 +8,14 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 	"github.com/tsubasa597/ASoulCnkiBackend/comment"
+	"github.com/tsubasa597/ASoulCnkiBackend/conf"
 	"github.com/tsubasa597/ASoulCnkiBackend/db"
 )
 
 func Satus(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{
 		"started": lis.Update.Started || lis.Started(),
-		"wait":    atomic.LoadInt32(&lis.Wait),
+		"wait":    atomic.LoadInt32(lis.Wait),
 	})
 }
 
@@ -40,6 +41,7 @@ var (
 
 func init() {
 	once.Do(func() {
-		lis = comment.NewListen(logrus.WithField("", ""))
+		conf.WriteLog()
+		lis = comment.NewListen(logrus.NewEntry(logrus.StandardLogger()))
 	})
 }

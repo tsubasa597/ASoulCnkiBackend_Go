@@ -11,22 +11,20 @@ import (
 
 func WriteLog() {
 	writer, err := rotatelogs.New(
-		path.Join(Path, "%Y-%m-%d.log"),
+		path.Join("./logs", "%Y-%m-%d.log"),
 		rotatelogs.WithMaxAge(7*24*time.Hour),
 		rotatelogs.WithRotationTime(24*time.Hour),
 	)
 	if err != nil {
-		panic(err)
+		logrus.WithError(err).Error("unable to write logs")
+		return
 	}
-
-	w := lfshook.WriterMap{
-		logrus.ErrorLevel: writer,
-		logrus.FatalLevel: writer,
-	}
-
-	if RunMode == "debug" {
-		w[logrus.ErrorLevel] = writer
-	}
-
-	logrus.AddHook(lfshook.NewHook(w, &logrus.JSONFormatter{}))
+	logrus.AddHook(lfshook.NewHook(
+		lfshook.WriterMap{
+			logrus.InfoLevel:  writer,
+			logrus.ErrorLevel: writer,
+			logrus.FatalLevel: writer,
+		}, &logrus.JSONFormatter{},
+	))
+	logrus.SetOutput(writer)
 }
