@@ -31,7 +31,7 @@ type Model struct {
 
 func init() {
 	var err error
-	if conf.SQL == "sqllite" {
+	if conf.SQL == "sqlite" {
 		db, err = gorm.Open(sqlite.Open("comment.db"), &gorm.Config{})
 	} else if conf.SQL == "mysql" {
 		db, err = gorm.Open(
@@ -115,7 +115,7 @@ func Add(model Modeler) error {
 		return db.Clauses(clause.Insert{
 			Modifier: "IGNORE",
 		}).Create(model).Error
-	} else if conf.SQL == "sqllite" {
+	} else if conf.SQL == "sqlite" {
 		return db.Clauses(clause.Insert{
 			Modifier: "OR IGNORE",
 		}).Create(model).Error

@@ -132,6 +132,7 @@ func (update *Update) Comment() {
 		atomic.AddInt32(update.Wait, 1)
 		go update.comment(dynamic)
 	}
+
 	update.wg.Wait()
 	atomic.AddInt32(update.Started, -1)
 }

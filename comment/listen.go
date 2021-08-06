@@ -72,7 +72,8 @@ func (lis Listen) load(uid int64, timestamp int32, ctx context.Context, ch <-cha
 func NewListen(log *logrus.Entry) *Listen {
 	var (
 		weight  int64 = 1
-		inx     int32 = 0
+		started int32 = 0
+		wait    int32 = 0
 		li, ctx       = listen.New(api.API{}, log)
 	)
 
@@ -81,8 +82,8 @@ func NewListen(log *logrus.Entry) *Listen {
 			currentLimit: semaphore.NewWeighted(weight * conf.GoroutineNum),
 			weight:       weight,
 			Ctx:          ctx,
-			Started:      &inx,
-			Wait:         &inx,
+			Started:      &started,
+			Wait:         &wait,
 			wg:           &sync.WaitGroup{},
 			log:          log,
 		},
