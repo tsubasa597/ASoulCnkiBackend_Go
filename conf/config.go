@@ -30,10 +30,10 @@ func init() {
 	if err != nil {
 		log.Fatalf("Fail to parse 'conf/app.ini': %v", err)
 	}
-	RunMode = cfg.Section("web").Key("RunMode").MustString("debug")
-	Port = cfg.Section("web").Key("Port").MustInt(8000)
-	DefaultB = cfg.Section("check").Key("DefaultB").MustFloat64(2)
-	DefaultK = cfg.Section("check").Key("DefaultK").MustInt(8)
+	RunMode = cfg.Section("web").Key("RUN_MODE").MustString("debug")
+	Port = cfg.Section("web").Key("PORT").MustInt(8000)
+	DefaultB = cfg.Section("check").Key("DEFAULT_B").MustFloat64(2)
+	DefaultK = cfg.Section("check").Key("DEFAULT_K").MustInt(8)
 	HeapLength = cfg.Section("check").Key("HEAP_LENGTH").MustInt(10)
 	DefaultPS = cfg.Section("dynamic").Key("DEFAULT_PS").MustInt(49)
 	MaxConn = cfg.Section("sql").Key("MAX_CONN").MustInt(100)

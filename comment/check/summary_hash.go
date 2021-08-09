@@ -1,4 +1,4 @@
-package comment
+package check
 
 import (
 	"math"
@@ -6,8 +6,6 @@ import (
 
 	"github.com/tsubasa597/ASoulCnkiBackend/conf"
 )
-
-type Set map[int64]struct{}
 
 func Hash(s string) []int64 {
 	n := utf8.RuneCountInString(s)
@@ -22,8 +20,8 @@ func Hash(s string) []int64 {
 	return hashs
 }
 
-func HashSet(s string) Set {
-	hashs := make(Set)
+func HashSet(s string) map[int64]struct{} {
+	hashs := make(map[int64]struct{})
 	for i := 0; i < utf8.RuneCountInString(s)-conf.DefaultK+1; i++ {
 		var ans int64
 		for j, v := range ([]rune(s))[i : i+conf.DefaultK] {
@@ -36,7 +34,7 @@ func HashSet(s string) Set {
 
 func CompareStr(s1, s2 string) float64 {
 	h1, h2 := Hash(s1), HashSet(s2)
-	set := make(Set)
+	set := make(map[int64]struct{})
 	count := 0.0
 	charNum := utf8.RuneCountInString(s1)
 	for i := 0; i < charNum-conf.DefaultK+1; i++ {

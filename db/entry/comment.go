@@ -1,4 +1,4 @@
-package db
+package entry
 
 type Comment struct {
 	Model
@@ -12,7 +12,7 @@ type Comment struct {
 
 var _ Modeler = (*Comment)(nil)
 
-func (Comment) getModels() interface{} {
+func (Comment) GetModels() interface{} {
 	return &[]Comment{}
 }
 
@@ -24,7 +24,7 @@ type Comments []*Comment
 
 var _ Modeler = (*Comments)(nil)
 
-func (Comments) getModels() interface{} {
+func (Comments) GetModels() interface{} {
 	return &[]Comment{}
 }
 

@@ -1,4 +1,4 @@
-package db
+package entry
 
 type User struct {
 	Model
@@ -9,7 +9,7 @@ type User struct {
 
 var _ Modeler = (*User)(nil)
 
-func (User) getModels() interface{} {
+func (User) GetModels() interface{} {
 	return &[]User{}
 }
 

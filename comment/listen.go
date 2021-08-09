@@ -7,15 +7,17 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
+	"github.com/tsubasa597/ASoulCnkiBackend/cache"
 	"github.com/tsubasa597/ASoulCnkiBackend/conf"
 	"github.com/tsubasa597/ASoulCnkiBackend/db"
+	"github.com/tsubasa597/ASoulCnkiBackend/db/entry"
 	"github.com/tsubasa597/BILIBILI-HELPER/api"
 	"github.com/tsubasa597/BILIBILI-HELPER/info"
 	"github.com/tsubasa597/BILIBILI-HELPER/listen"
 	"golang.org/x/sync/semaphore"
 )
 
-type Listen struct {
+type ListenUpdate struct {
 	listen.Listen
 	Update
 	Duration time.Duration
@@ -24,11 +26,13 @@ type Listen struct {
 	enable   bool
 }
 
-func (lis Listen) Started() bool {
-	return lis.enable || (atomic.LoadInt32(lis.Update.Started) == 1)
+func (lis ListenUpdate) Started() bool {
+	return lis.enable ||
+		(atomic.LoadInt32(lis.Update.commentStarted) == 1 ||
+			(atomic.LoadInt32(lis.Update.dynamicStarted) == 1))
 }
 
-func (lis Listen) Add(user db.User) {
+func (lis ListenUpdate) Add(user entry.User) {
 	if !lis.Started() {
 		return
 	}
@@ -43,7 +47,7 @@ func (lis Listen) Add(user db.User) {
 
 }
 
-func (lis Listen) load(uid int64, timestamp int32, ctx context.Context, ch <-chan []info.Infoer) {
+func (lis ListenUpdate) load(uid int64, timestamp int32, ctx context.Context, ch <-chan []info.Infoer) {
 	for {
 		select {
 		case <-ctx.Done():
@@ -56,7 +60,7 @@ func (lis Listen) load(uid int64, timestamp int32, ctx context.Context, ch <-cha
 					break
 				}
 
-				db.Add(&db.Dynamic{
+				lis.db.Add(&entry.Dynamic{
 					UID:       uid,
 					DynamicID: dy.DynamicID,
 					RID:       dy.RID,
@@ -69,23 +73,27 @@ func (lis Listen) load(uid int64, timestamp int32, ctx context.Context, ch <-cha
 	}
 }
 
-func NewListen(log *logrus.Entry) *Listen {
+func NewListen(db db.DB, cache cache.Cacher, log *logrus.Entry) *ListenUpdate {
 	var (
-		weight  int64 = 1
-		started int32 = 0
-		wait    int32 = 0
-		li, ctx       = listen.New(api.API{}, log)
+		weight    int64 = 1
+		dystarted int32 = 0
+		costarted int32 = 0
+		wait      int32 = 0
+		li, ctx         = listen.New(api.API{}, log)
 	)
 
-	listen := &Listen{
+	listen := &ListenUpdate{
 		Update: Update{
-			currentLimit: semaphore.NewWeighted(weight * conf.GoroutineNum),
-			weight:       weight,
-			Ctx:          ctx,
-			Started:      &started,
-			Wait:         &wait,
-			wg:           &sync.WaitGroup{},
-			log:          log,
+			currentLimit:   semaphore.NewWeighted(weight * conf.GoroutineNum),
+			weight:         weight,
+			Ctx:            ctx,
+			dynamicStarted: &dystarted,
+			commentStarted: &costarted,
+			Wait:           &wait,
+			wg:             &sync.WaitGroup{},
+			cache:          cache,
+			db:             db,
+			log:            log,
 		},
 		Duration: time.Duration(time.Minute * time.Duration(conf.Duration)),
 		Listen:   *li,

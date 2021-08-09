@@ -1,4 +1,4 @@
-package db
+package entry
 
 type Dynamic struct {
 	Model
@@ -12,19 +12,10 @@ type Dynamic struct {
 
 var _ Modeler = (*Dynamic)(nil)
 
-func (Dynamic) getModels() interface{} {
+func (Dynamic) GetModels() interface{} {
 	return &[]Dynamic{}
 }
 
 func (Dynamic) TableName() string {
 	return "dynamic"
-}
-
-func (dynamic Dynamic) Find(params []interface{}) interface{} {
-	mutex.Lock()
-	defer mutex.Unlock()
-
-	models := dynamic.getModels()
-	db.Order("time asc").Find(models, params...)
-	return models
 }

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/tsubasa597/ASoulCnkiBackend/conf"
+	"github.com/tsubasa597/ASoulCnkiBackend/db/entry"
 
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/sqlite"
@@ -14,39 +15,35 @@ import (
 	"gorm.io/plugin/dbresolver"
 )
 
-var (
+type DB struct {
 	db    *gorm.DB
-	mutex sync.Mutex
-)
-
-type Modeler interface {
-	getModels() interface{}
+	mutex *sync.Mutex
 }
 
-type Model struct {
-	ID       uint64    `json:"-" gorm:"primaryKey;autoIncrement"`
-	CreateAt time.Time `json:"-" gorm:"autoCreateTime"`
-	UpdateAt time.Time `json:"-" gorm:"autoUpdateTime"`
-}
+func New() (*DB, error) {
+	var (
+		db = &DB{
+			mutex: &sync.Mutex{},
+		}
+		err error
+	)
 
-func init() {
-	var err error
 	if conf.SQL == "sqlite" {
-		db, err = gorm.Open(sqlite.Open("comment.db"), &gorm.Config{})
+		db.db, err = gorm.Open(sqlite.Open("comment.db"), &gorm.Config{})
 	} else if conf.SQL == "mysql" {
-		db, err = gorm.Open(
+		db.db, err = gorm.Open(
 			mysql.Open(fmt.Sprintf("%s:%s@tcp(%s)/%s?charset=utf8mb4&parseTime=True&loc=Local",
 				conf.User, conf.Password, conf.Host, conf.DBName)),
 			&gorm.Config{})
 	} else {
-		panic(ErrHasNoDataBase)
+		return nil, fmt.Errorf(ErrHasNoDataBase)
 	}
 
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
-	db.Use(dbresolver.Register(dbresolver.Config{}).
+	db.db.Use(dbresolver.Register(dbresolver.Config{}).
 		SetConnMaxIdleTime(time.Hour).
 		SetConnMaxLifetime(24 * time.Hour).
 		SetMaxIdleConns(conf.MaxOpen).
@@ -54,87 +51,98 @@ func init() {
 	)
 
 	if conf.RunMode == "debug" {
-		db.Debug()
+		db.db = db.db.Debug()
 	}
 
-	migrateTable()
+	db.migrateTable()
+
+	return db, nil
 }
 
-func migrateTable() {
-	if !db.Migrator().HasTable(&User{}) {
-		db.AutoMigrate(&User{})
-		fmt.Println(Add(&User{
+func (db DB) migrateTable() {
+	if !db.db.Migrator().HasTable(&entry.User{}) {
+		db.db.AutoMigrate(&entry.User{})
+		fmt.Println(db.Add(&entry.User{
 			UID:             351609538,
 			LastDynamicTime: 1606403616, // 1627381252
 		}))
-		fmt.Println(Add(&User{
+		fmt.Println(db.Add(&entry.User{
 			UID:             672328094,
 			LastDynamicTime: 1606133780, // 1627381148
 		}))
-		fmt.Println(Add(&User{
+		fmt.Println(db.Add(&entry.User{
 			UID:             672353429,
 			LastDynamicTime: 1606403340,
 		}))
-		fmt.Println(Add(&User{
+		fmt.Println(db.Add(&entry.User{
 			UID:             672346917,
 			LastDynamicTime: 1606403478,
 		}))
-		fmt.Println(Add(&User{
+		fmt.Println(db.Add(&entry.User{
 			UID:             672342685,
 			LastDynamicTime: 1606403225,
 		}))
 	}
-	db.AutoMigrate(&Comment{}, &Dynamic{})
+	db.db.AutoMigrate(&entry.Comment{}, &entry.Dynamic{})
 }
 
-func Get(model Modeler) interface{} {
-	mutex.Lock()
-	defer mutex.Unlock()
+type Param struct {
+	Order string
+	Where map[string]interface{}
+	Field []string
+	Query string
+	Args  []interface{}
+}
 
-	models := model.getModels()
-	db.Find(models)
+func (db DB) Get(model entry.Modeler) interface{} {
+	db.mutex.Lock()
+	defer db.mutex.Unlock()
+
+	models := model.GetModels()
+	db.db.Find(models)
 
 	return models
 }
 
-func Find(model Modeler) error {
-	mutex.Lock()
-	defer mutex.Unlock()
+func (db DB) Find(model entry.Modeler, param Param) (interface{}, error) {
+	db.mutex.Lock()
+	defer db.mutex.Unlock()
+	models := model.GetModels()
 
-	if db.Where(model).Find(model).RowsAffected == 0 {
-		return fmt.Errorf(ErrNotFound)
+	if db.db.Select(param.Field).Order(param.Order).Where(param.Query, param.Args...).Find(models).RowsAffected == 0 {
+		return models, fmt.Errorf(ErrNotFound)
 	}
-	return db.Error
+	return models, db.db.Error
 }
 
-func Add(model Modeler) error {
-	mutex.Lock()
-	defer mutex.Unlock()
+func (db DB) Add(model entry.Modeler) error {
+	db.mutex.Lock()
+	defer db.mutex.Unlock()
 
 	if conf.SQL == "mysql" {
-		return db.Clauses(clause.Insert{
+		return db.db.Clauses(clause.Insert{
 			Modifier: "IGNORE",
 		}).Create(model).Error
 	} else if conf.SQL == "sqlite" {
-		return db.Clauses(clause.Insert{
+		return db.db.Clauses(clause.Insert{
 			Modifier: "OR IGNORE",
 		}).Create(model).Error
 	}
 	return fmt.Errorf(ErrHasNoDataBase)
 }
 
-func Update(model Modeler) error {
-	mutex.Lock()
-	defer mutex.Unlock()
+func (db DB) Update(model entry.Modeler, param Param) error {
+	db.mutex.Lock()
+	defer db.mutex.Unlock()
 
-	return db.Updates(model).Error
+	return db.db.Model(model).Select(param.Field).Updates(model).Error
 }
 
-func Delete(model Modeler) error {
-	mutex.Lock()
-	defer mutex.Unlock()
+func (db DB) Delete(model entry.Modeler) error {
+	db.mutex.Lock()
+	defer db.mutex.Unlock()
 
-	return db.Delete(model).Error
+	return db.db.Delete(model).Error
 }
 
 const (

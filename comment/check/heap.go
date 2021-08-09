@@ -1,14 +1,14 @@
-package comment
+package check
 
 import (
 	"container/heap"
 
 	"github.com/tsubasa597/ASoulCnkiBackend/conf"
-	"github.com/tsubasa597/ASoulCnkiBackend/db"
+	"github.com/tsubasa597/ASoulCnkiBackend/db/entry"
 )
 
 type CompareResult struct {
-	Comment    *db.Comment
+	Comment    *entry.Comment
 	Similarity float64
 }
 

@@ -3,13 +3,16 @@ package cache
 import (
 	"fmt"
 	"os"
+	"strconv"
+	"strings"
 
 	"github.com/tidwall/buntdb"
 )
 
 type Comment struct {
-	db   *buntdb.DB
-	file *os.File
+	IsInit bool
+	db     *buntdb.DB
+	file   *os.File
 }
 
 var _ Cacher = (*Comment)(nil)
@@ -52,7 +55,7 @@ func (c Comment) Set(key, value interface{}) error {
 	return nil
 }
 
-func NewComment(f func(Cacher)) (*Comment, error) {
+func NewComment() (*Comment, error) {
 	c := &Comment{}
 
 	file, err := os.OpenFile("./cache.dat", os.O_RDWR|os.O_CREATE, 0755)
@@ -68,10 +71,8 @@ func NewComment(f func(Cacher)) (*Comment, error) {
 	}
 
 	if info, _ := file.Stat(); info.Size() != 0 {
+		c.IsInit = true
 		c.db.Load(file)
-	} else {
-		c.Load(f)
-		c.db.Save(file)
 	}
 
 	return c, nil
@@ -85,6 +86,25 @@ func (c Comment) Save() error {
 	return fmt.Errorf("file not fuond")
 }
 
-func (c Comment) Load(f func(Cacher)) {
-	f(c)
+func (c Comment) Init(key, value interface{}) error {
+	if c.IsInit {
+		return fmt.Errorf("already init")
+	}
+
+	if comments, ok := value.(map[int64]struct{}); ok {
+		for k := range comments {
+			data, id := strconv.Itoa(int(k)), strconv.Itoa(int(key.(uint64)))
+			if ids, err := c.Get(data); err == nil {
+				if strings.Contains(ids.(string), id) {
+					continue
+				}
+				c.Set(data, ids.(string)+","+id)
+				continue
+			}
+			c.Set(data, id)
+		}
+	} else {
+		return fmt.Errorf("type error")
+	}
+	return nil
 }
