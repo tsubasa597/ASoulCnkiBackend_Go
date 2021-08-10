@@ -1,8 +1,6 @@
 package comment
 
 import (
-	"fmt"
-
 	"github.com/sirupsen/logrus"
 	"github.com/tsubasa597/ASoulCnkiBackend/cache"
 	"github.com/tsubasa597/ASoulCnkiBackend/comment/check"
@@ -34,42 +32,9 @@ func New(db_ db.DB, cache cache.Cacher, log *logrus.Entry) *Comment {
 		}
 	}
 
-	id, err := c.cache.Get("LastCommentID")
-	if err != nil {
-		comms, err := c.db.Get(&entry.Comment{})
-		if err != nil {
-			return c
-		}
-
-		for _, v := range *comms.(*[]entry.Comment) {
-			if err := c.cache.Init(v.ID, check.HashSet(check.ReplaceStr(v.Comment))); err != nil {
-				log.WithField("Func", "Init Cache").Error(err)
-				return c
-			}
-			c.cache.Set("LastCommentID", fmt.Sprint(v.ID))
-		}
-
-		c.cache.Save()
-		return c
+	if err := cache.Increment(db_, check.HashSet); err != nil {
+		c.log.WithField("Func", "cache.Increment").Error(err)
 	}
 
-	comms, err := c.db.Find(&entry.Comment{}, db.Param{
-		Query: "id > ?",
-		Args:  []interface{}{id},
-		Order: "id",
-	})
-	if err != nil {
-		return c
-	}
-
-	for _, v := range *comms.(*[]entry.Comment) {
-		if err := c.cache.Init(v.ID, check.HashSet(v.Comment)); err != nil {
-			log.WithField("Func", "Init Cache").Error(err)
-			return c
-		}
-		c.cache.Set("LastCommentID", fmt.Sprint(v.ID))
-	}
-
-	c.cache.Save()
 	return c
 }

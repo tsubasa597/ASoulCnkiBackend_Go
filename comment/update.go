@@ -45,8 +45,11 @@ func (update *Update) Dynamic() {
 		return
 	}
 
-	atomic.AddInt32(update.dynamicStarted, 1)
-	defer atomic.AddInt32(update.dynamicStarted, -1)
+	if !atomic.CompareAndSwapInt32(update.dynamicStarted, 0, 1) {
+		update.log.WithField("Func", "CompareAndSwapInt32").Error("多协程启动！")
+		return
+	}
+	defer atomic.CompareAndSwapInt32(update.dynamicStarted, 1, 0)
 
 	users, err := update.db.Get(&entry.User{})
 	if err != nil {
@@ -55,7 +58,6 @@ func (update *Update) Dynamic() {
 
 	for _, user := range *users.(*[]entry.User) {
 		update.wg.Add(1)
-		atomic.AddInt32(update.Wait, 1)
 		update.dynamic(user)
 	}
 
@@ -63,7 +65,11 @@ func (update *Update) Dynamic() {
 }
 
 func (update Update) dynamic(user entry.User) {
-	update.currentLimit.Acquire(update.Ctx, update.weight)
+	defer update.wg.Done()
+
+	atomic.AddInt32(update.Wait, 1)
+	defer atomic.AddInt32(update.Wait, -1)
+
 	var (
 		timestamp int32 = user.LastDynamicTime
 		offect    int64
@@ -81,7 +87,7 @@ DynamicPage:
 		for _, v := range resp.Data.Cards {
 			info, err := api.GetOriginCard(v)
 			if err != nil {
-				update.log.WithField("Func", "Update api.GetOriginCard").Errorln(err, info.CommentType)
+				update.log.WithField("Func", "Update api.GetOriginCard").Errorln(err, info.CommentType, v.Desc.OrigType, user.UID, offect)
 				continue
 			}
 
@@ -97,10 +103,9 @@ DynamicPage:
 				Time:      info.Time,
 				Updated:   false,
 			})
-
 			user.Name = info.Name
-			offect = info.DynamicID
 		}
+		offect = resp.Data.NextOffset
 	}
 
 	for i := len(dynamics) - 1; i >= 0; i-- {
@@ -111,10 +116,6 @@ DynamicPage:
 			Field: []string{"dynamic_time", "name"},
 		})
 	}
-
-	atomic.AddInt32(update.Wait, -1)
-	update.currentLimit.Release(update.weight)
-	update.wg.Done()
 }
 
 func (update *Update) Comment() {
@@ -122,7 +123,11 @@ func (update *Update) Comment() {
 		return
 	}
 
-	atomic.AddInt32(update.commentStarted, 1)
+	if !atomic.CompareAndSwapInt32(update.commentStarted, 0, 1) {
+		update.log.WithField("Func", "CompareAndSwapInt32").Error("多协程启动！")
+		return
+	}
+	defer atomic.CompareAndSwapInt32(update.commentStarted, 1, 0)
 
 	dynamics, err := update.db.Find(&entry.Dynamic{}, db.Param{
 		Order: "time asc",
@@ -140,15 +145,18 @@ func (update *Update) Comment() {
 	}
 
 	update.wg.Wait()
-	atomic.AddInt32(update.commentStarted, -1)
 }
 
 func (update Update) comment(dynamic entry.Dynamic) {
+	defer update.wg.Done()
+
 	if dynamic.Updated {
 		return
 	}
 
 	atomic.AddInt32(update.Wait, 1)
+	defer atomic.AddInt32(update.Wait, -1)
+
 	for i := 1; true; i++ {
 		update.currentLimit.Acquire(update.Ctx, update.weight)
 		comments, err := api.GetComments(dynamic.Type, 0, dynamic.RID, conf.DefaultPS, i)
@@ -160,19 +168,19 @@ func (update Update) comment(dynamic entry.Dynamic) {
 
 		if comments.Code != 0 {
 			update.log.WithField("Func", "UpdateComment Code").Errorln(comments.Message)
-			break
+			update.currentLimit.Release(update.weight)
+			return
 		}
 
 		if len(comments.Data.Replies) == 0 {
 			update.log.WithField("Func", "UpdateComment Replies").Info(dynamic.Type, dynamic.RID, i)
+			update.currentLimit.Release(update.weight)
 			break
 		}
 
 		comm := make(entry.Comments, 0, len(comments.Data.Replies))
 		for _, comment := range comments.Data.Replies {
-			s := check.ReplaceStr(comment.Content.Message)
-
-			if utf8.RuneCountInString(s) < conf.DefaultK {
+			if utf8.RuneCountInString(check.ReplaceStr(comment.Content.Message)) < conf.DefaultK {
 				continue
 			}
 
@@ -189,12 +197,12 @@ func (update Update) comment(dynamic entry.Dynamic) {
 		update.currentLimit.Release(update.weight)
 	}
 
+	if err := update.cache.Increment(update.db, check.HashSet); err != nil {
+		update.log.WithField("Func", "Increment").Error(err)
+	}
+
 	dynamic.Updated = true
 	update.db.Update(&dynamic, db.Param{
 		Field: []string{"is_update"},
 	})
-
-	update.currentLimit.Release(update.weight)
-	atomic.AddInt32(update.Wait, -1)
-	update.wg.Done()
 }

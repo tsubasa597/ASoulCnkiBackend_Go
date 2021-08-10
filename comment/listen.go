@@ -45,7 +45,6 @@ func (lis ListenUpdate) Add(user entry.User) {
 
 	lis.log.WithField("Func", "ListenUpdate.Add").Info(fmt.Sprintf("Listen %d", user.UID))
 	go lis.load(&user, user.LastDynamicTime, ctx, ch)
-
 }
 
 func (lis ListenUpdate) load(user *entry.User, timestamp int32, ctx context.Context, ch <-chan []info.Infoer) {
@@ -98,13 +97,13 @@ func NewListen(db db.DB, cache cache.Cacher, log *logrus.Entry) *ListenUpdate {
 			currentLimit:   semaphore.NewWeighted(weight * conf.GoroutineNum),
 			weight:         weight,
 			Ctx:            ctx,
+			log:            log,
+			cache:          cache,
+			db:             db,
 			dynamicStarted: &dystarted,
 			commentStarted: &costarted,
 			Wait:           &wait,
 			wg:             &sync.WaitGroup{},
-			cache:          cache,
-			db:             db,
-			log:            log,
 		},
 		Duration: time.Duration(time.Minute * time.Duration(conf.Duration)),
 		Listen:   *li,

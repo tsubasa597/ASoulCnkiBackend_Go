@@ -11,7 +11,7 @@ import (
 
 func WriteLog() {
 	writer, err := rotatelogs.New(
-		path.Join("./logs", "%Y-%m-%d.log"),
+		path.Join(LogPath, "%Y-%m-%d.log"),
 		rotatelogs.WithMaxAge(7*24*time.Hour),
 		rotatelogs.WithRotationTime(24*time.Hour),
 	)

@@ -1,9 +1,7 @@
 package v1
 
 import (
-	"fmt"
 	"net/http"
-	"sync"
 	"sync/atomic"
 
 	"github.com/gin-gonic/gin"
@@ -36,28 +34,21 @@ func Update(ctx *gin.Context) {
 }
 
 var (
-	once sync.Once
 	comm *comment.Comment
 )
 
 func init() {
-	once.Do(func() {
-		db, err := db.New()
-		if err != nil {
-			panic(err)
-		}
+	db, err := db.New()
+	if err != nil {
+		panic(err)
+	}
 
-		cache, err := cache.NewComment()
-		if err != nil {
-			panic(err)
-		}
+	cache, err := cache.NewComment()
+	if err != nil {
+		panic(err)
+	}
 
-		comm = comment.New(*db, cache, logrus.NewEntry(logrus.StandardLogger()))
+	comm = comment.New(*db, cache, logrus.NewEntry(logrus.StandardLogger()))
 
-		// for _, user := range *db.Get(&entry.User{}).(*[]entry.User) {
-		// 	comm.Add(user)
-		// }
-
-		fmt.Println("All Done...")
-	})
+	logrus.Info("Init Done...")
 }

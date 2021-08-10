@@ -145,6 +145,6 @@ func (db DB) Delete(model entry.Modeler) error {
 }
 
 const (
-	ErrNotFound      = "不存在"
+	ErrNotFound      = "数据不存在"
 	ErrHasNoDataBase = "没有指定数据库"
 )

@@ -8,6 +8,7 @@ import (
 )
 
 func Hash(s string) []int64 {
+	s = ReplaceStr(s)
 	n := utf8.RuneCountInString(s)
 	hashs := make([]int64, n)
 	for i := 0; i < utf8.RuneCountInString(s)-conf.DefaultK+1; i++ {
@@ -21,6 +22,7 @@ func Hash(s string) []int64 {
 }
 
 func HashSet(s string) map[int64]struct{} {
+	s = ReplaceStr(s)
 	hashs := make(map[int64]struct{})
 	for i := 0; i < utf8.RuneCountInString(s)-conf.DefaultK+1; i++ {
 		var ans int64
