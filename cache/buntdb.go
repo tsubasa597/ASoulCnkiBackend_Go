@@ -3,16 +3,14 @@ package cache
 import (
 	"fmt"
 	"os"
-	"strconv"
 	"strings"
 
 	"github.com/tidwall/buntdb"
 )
 
 type Comment struct {
-	IsInit bool
-	db     *buntdb.DB
-	file   *os.File
+	db   *buntdb.DB
+	file *os.File
 }
 
 var _ Cacher = (*Comment)(nil)
@@ -55,6 +53,25 @@ func (c Comment) Set(key, value interface{}) error {
 	return nil
 }
 
+func (c Comment) Update(key interface{}, value interface{}) error {
+	k, ok1 := key.(string)
+	v, ok2 := value.(string)
+
+	if ok1 && ok2 {
+		c.db.Update(func(tx *buntdb.Tx) error {
+			if val, err := tx.Get(k); err == nil {
+				tx.Set(k, val+","+v, nil)
+				return nil
+			}
+			tx.Set(k, v, nil)
+			return nil
+		})
+	} else {
+		return fmt.Errorf("type error")
+	}
+	return nil
+}
+
 func NewComment() (*Comment, error) {
 	c := &Comment{}
 
@@ -71,7 +88,6 @@ func NewComment() (*Comment, error) {
 	}
 
 	if info, _ := file.Stat(); info.Size() != 0 {
-		c.IsInit = true
 		c.db.Load(file)
 	}
 
@@ -87,13 +103,9 @@ func (c Comment) Save() error {
 }
 
 func (c Comment) Init(key, value interface{}) error {
-	if c.IsInit {
-		return fmt.Errorf("already init")
-	}
-
 	if comments, ok := value.(map[int64]struct{}); ok {
 		for k := range comments {
-			data, id := strconv.Itoa(int(k)), strconv.Itoa(int(key.(uint64)))
+			data, id := fmt.Sprint(k), fmt.Sprint(key.(uint64))
 			if ids, err := c.Get(data); err == nil {
 				if strings.Contains(ids.(string), id) {
 					continue

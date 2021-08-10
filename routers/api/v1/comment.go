@@ -11,7 +11,6 @@ import (
 	"github.com/tsubasa597/ASoulCnkiBackend/cache"
 	"github.com/tsubasa597/ASoulCnkiBackend/comment"
 	"github.com/tsubasa597/ASoulCnkiBackend/db"
-	"github.com/tsubasa597/ASoulCnkiBackend/db/entry"
 )
 
 func Satus(ctx *gin.Context) {
@@ -55,9 +54,9 @@ func init() {
 
 		comm = comment.New(*db, cache, logrus.NewEntry(logrus.StandardLogger()))
 
-		for _, user := range *db.Get(&entry.User{}).(*[]entry.User) {
-			comm.Add(user)
-		}
+		// for _, user := range *db.Get(&entry.User{}).(*[]entry.User) {
+		// 	comm.Add(user)
+		// }
 
 		fmt.Println("All Done...")
 	})

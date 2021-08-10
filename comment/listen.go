@@ -2,6 +2,7 @@ package comment
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -22,7 +23,6 @@ type ListenUpdate struct {
 	Update
 	Duration time.Duration
 	log      *logrus.Entry
-	dynamic  *listen.Dynamic
 	enable   bool
 }
 
@@ -37,36 +37,47 @@ func (lis ListenUpdate) Add(user entry.User) {
 		return
 	}
 
-	ctx, ch, err := lis.Listen.Add(user.UID, user.LastDynamicTime, lis.dynamic, lis.Duration)
+	ctx, ch, err := lis.Listen.Add(user.UID, user.LastDynamicTime, lis.Duration)
 	if err != nil {
 		lis.log.WithField("Func", "Listen.Add").Error(err)
 		return
 	}
 
-	go lis.load(user.UID, user.LastDynamicTime, ctx, ch)
+	lis.log.WithField("Func", "ListenUpdate.Add").Info(fmt.Sprintf("Listen %d", user.UID))
+	go lis.load(&user, user.LastDynamicTime, ctx, ch)
 
 }
 
-func (lis ListenUpdate) load(uid int64, timestamp int32, ctx context.Context, ch <-chan []info.Infoer) {
+func (lis ListenUpdate) load(user *entry.User, timestamp int32, ctx context.Context, ch <-chan []info.Infoer) {
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case infos := <-ch:
 			for _, in := range infos {
-				dy := in.GetInstance().(info.Dynamic)
+				dy := in.GetInstance().(*info.Dynamic)
 
 				if timestamp >= dy.Time {
 					break
 				}
 
-				lis.db.Add(&entry.Dynamic{
-					UID:       uid,
+				dynaimc := &entry.Dynamic{
+					UID:       user.UID,
 					DynamicID: dy.DynamicID,
 					RID:       dy.RID,
 					Type:      dy.CommentType,
 					Time:      dy.Time,
 					Updated:   false,
+				}
+
+				lis.db.Add(dynaimc)
+
+				lis.wg.Add(1)
+				go lis.comment(*dynaimc)
+
+				user.LastDynamicTime = dy.Time
+				lis.db.Update(user, db.Param{
+					Field: []string{"dynamic_time", "name"},
 				})
 			}
 		}
@@ -79,7 +90,7 @@ func NewListen(db db.DB, cache cache.Cacher, log *logrus.Entry) *ListenUpdate {
 		dystarted int32 = 0
 		costarted int32 = 0
 		wait      int32 = 0
-		li, ctx         = listen.New(api.API{}, log)
+		li, ctx         = listen.New(listen.NewDynamic(), api.API{}, log)
 	)
 
 	listen := &ListenUpdate{
@@ -98,7 +109,6 @@ func NewListen(db db.DB, cache cache.Cacher, log *logrus.Entry) *ListenUpdate {
 		Duration: time.Duration(time.Minute * time.Duration(conf.Duration)),
 		Listen:   *li,
 		log:      log,
-		dynamic:  listen.NewDynamic(),
 		enable:   conf.Satrt,
 	}
 

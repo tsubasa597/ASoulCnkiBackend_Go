@@ -88,20 +88,19 @@ func (db DB) migrateTable() {
 
 type Param struct {
 	Order string
-	Where map[string]interface{}
 	Field []string
 	Query string
 	Args  []interface{}
 }
 
-func (db DB) Get(model entry.Modeler) interface{} {
+func (db DB) Get(model entry.Modeler) (interface{}, error) {
 	db.mutex.Lock()
 	defer db.mutex.Unlock()
 
 	models := model.GetModels()
 	db.db.Find(models)
 
-	return models
+	return models, db.db.Error
 }
 
 func (db DB) Find(model entry.Modeler, param Param) (interface{}, error) {

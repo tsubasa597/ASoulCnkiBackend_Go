@@ -46,15 +46,20 @@ func (update *Update) Dynamic() {
 	}
 
 	atomic.AddInt32(update.dynamicStarted, 1)
+	defer atomic.AddInt32(update.dynamicStarted, -1)
 
-	for _, user := range *update.db.Get(&entry.User{}).(*[]entry.User) {
+	users, err := update.db.Get(&entry.User{})
+	if err != nil {
+		return
+	}
+
+	for _, user := range *users.(*[]entry.User) {
 		update.wg.Add(1)
 		atomic.AddInt32(update.Wait, 1)
 		update.dynamic(user)
 	}
 
 	update.wg.Wait()
-	atomic.AddInt32(update.dynamicStarted, -1)
 }
 
 func (update Update) dynamic(user entry.User) {
@@ -121,9 +126,8 @@ func (update *Update) Comment() {
 
 	dynamics, err := update.db.Find(&entry.Dynamic{}, db.Param{
 		Order: "time asc",
-		Query: "is_update",
+		Query: "is_update = ?",
 		Args:  []interface{}{false},
-		// Where: map[string]interface{}{"is_update": false},
 	})
 	if err != nil {
 		update.log.WithField("Func", "DB.Find").Error(err)
@@ -132,7 +136,6 @@ func (update *Update) Comment() {
 
 	for _, dynamic := range *dynamics.(*[]entry.Dynamic) {
 		update.wg.Add(1)
-		atomic.AddInt32(update.Wait, 1)
 		go update.comment(dynamic)
 	}
 
@@ -141,6 +144,11 @@ func (update *Update) Comment() {
 }
 
 func (update Update) comment(dynamic entry.Dynamic) {
+	if dynamic.Updated {
+		return
+	}
+
+	atomic.AddInt32(update.Wait, 1)
 	for i := 1; true; i++ {
 		update.currentLimit.Acquire(update.Ctx, update.weight)
 		comments, err := api.GetComments(dynamic.Type, 0, dynamic.RID, conf.DefaultPS, i)

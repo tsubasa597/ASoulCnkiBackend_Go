@@ -44,13 +44,10 @@ func (check Check) Compare(s string) CompareResults {
 	for id, count := range counts {
 		charNum := utf8.RuneCountInString(s)
 		id_, _ := strconv.Atoi(id)
-		comms, err := check.db.Find(&entry.Comment{
-			Model: entry.Model{
-				ID: uint64(id_),
-			},
-		}, db.Param{
-			Query: "id",
+		comms, err := check.db.Find(&entry.Comment{}, db.Param{
+			Query: "id = ?",
 			Args:  []interface{}{id_},
+			Order: "id asc",
 		})
 		if err != nil {
 			continue
@@ -72,22 +69,6 @@ func (check Check) Compare(s string) CompareResults {
 	}
 
 	return commResults
-}
-
-func (check Check) InitCache() {
-	for _, v := range *check.db.Get(entry.Comment{}).(*[]entry.Comment) {
-		for k := range HashSet(v.Comment) {
-			data, id := strconv.Itoa(int(k)), strconv.Itoa(int(v.ID))
-			if ids, err := check.cache.Get(data); err == nil {
-				if strings.Contains(ids.(string), id) {
-					continue
-				}
-				check.cache.Set(data, ids.(string)+","+id)
-				continue
-			}
-			check.cache.Set(data, id)
-		}
-	}
 }
 
 func ReplaceStr(s string) string {
