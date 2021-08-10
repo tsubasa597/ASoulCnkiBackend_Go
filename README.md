@@ -6,9 +6,8 @@
 - Golang 1.16
 
 ## 使用方式
-- 启动程序
-- Get 请求 ```localhost:8080/api/v1/update``` 获取所有数据
-- Post 请求 ```localhost:8080/api/v1/check``` 即可
+- 等待自动爬取数据 或 关闭自动更新，使用 Get 请求 ```localhost:8080/api/v1/update``` 获取数据
+- 查重使用 Post 请求 ```localhost:8080/api/v1/check``` 即可
 
 ## Todos
 - [x] 可在生产环境下使用
