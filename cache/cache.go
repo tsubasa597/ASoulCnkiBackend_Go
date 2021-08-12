@@ -9,6 +9,5 @@ type Cacher interface {
 	Set(interface{}, interface{}) error
 	Update(interface{}, interface{}) error
 	Save() error
-	Init(interface{}, interface{}) error
 	Increment(db.DB, func(string) map[int64]struct{}) error
 }

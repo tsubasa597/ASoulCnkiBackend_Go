@@ -3,7 +3,6 @@ package cache
 import (
 	"fmt"
 	"os"
-	"strings"
 	"sync"
 
 	"github.com/tidwall/buntdb"
@@ -114,49 +113,36 @@ func (c Comment) Save() error {
 	return c.db.Save(file)
 }
 
-func (c Comment) Init(key, value interface{}) error {
-	if comments, ok := value.(map[int64]struct{}); ok {
-		for k := range comments {
-			data, id := fmt.Sprint(k), fmt.Sprint(key.(uint64))
-			if ids, err := c.Get(data); err == nil {
-				if strings.Contains(ids.(string), id) {
+func (c Comment) Increment(db_ db.DB, f func(string) map[int64]struct{}) error {
+	err := c.db.Update(func(tx *buntdb.Tx) error {
+		val, err := tx.Get("LastCommentID")
+		if err != nil {
+			val = "0"
+		}
+
+		comms, err := db_.Find(&entry.Comment{}, db.Param{
+			Query: "id > ?",
+			Args:  []interface{}{val},
+			Order: "id",
+		})
+		if err != nil {
+			return err
+		}
+
+		for _, v := range *comms.(*[]entry.Comment) {
+			for k := range f(v.Comment) {
+				if val, err := tx.Get(fmt.Sprint(v.ID)); err == nil {
+					tx.Set(fmt.Sprint(k), val+","+fmt.Sprint(v.ID), nil)
 					continue
 				}
-				c.Set(data, ids.(string)+","+id)
-				continue
+				tx.Set(fmt.Sprint(k), fmt.Sprint(v.ID), nil)
 			}
-			c.Set(data, id)
+			tx.Set("LastCommentID", fmt.Sprint(v.ID), nil)
 		}
-	} else {
-		return fmt.Errorf("type error")
-	}
-	return nil
-}
-
-func (c Comment) Increment(db_ db.DB, f func(string) map[int64]struct{}) error {
-	val, err := c.Get("LastCommentID")
-	if err != nil {
-		val = "0"
-	}
-
-	comms, err := db_.Find(&entry.Comment{}, db.Param{
-		Query: "id > ?",
-		Args:  []interface{}{val},
-		Order: "id",
+		return nil
 	})
 	if err != nil {
 		return err
-	}
-
-	for _, v := range *comms.(*[]entry.Comment) {
-		for k := range f(v.Comment) {
-			if val, err := c.Get(fmt.Sprint(v.ID)); err == nil {
-				c.Set(fmt.Sprint(k), val.(string)+","+fmt.Sprint(v.ID))
-				continue
-			}
-			c.Set(fmt.Sprint(k), fmt.Sprint(v.ID))
-		}
-		c.Set("LastCommentID", fmt.Sprint(v.ID))
 	}
 
 	return c.Save()

@@ -48,6 +48,7 @@ func (check Check) Compare(s string) CompareResults {
 			Query: "id = ?",
 			Args:  []interface{}{id_},
 			Order: "id asc",
+			Page:  -1,
 		})
 		if err != nil {
 			continue

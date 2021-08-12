@@ -1,4 +1,4 @@
-package comment
+package update
 
 import (
 	"context"
@@ -21,13 +21,13 @@ import (
 type ListenUpdate struct {
 	listen.Listen
 	Update
+	Enable   bool
 	Duration time.Duration
 	log      *logrus.Entry
-	enable   bool
 }
 
 func (lis ListenUpdate) Started() bool {
-	return lis.enable ||
+	return lis.Enable ||
 		(atomic.LoadInt32(lis.Update.commentStarted) == 1 ||
 			(atomic.LoadInt32(lis.Update.dynamicStarted) == 1))
 }
@@ -61,12 +61,11 @@ func (lis ListenUpdate) load(user *entry.User, timestamp int32, ctx context.Cont
 				}
 
 				dynaimc := &entry.Dynamic{
-					UID:       user.UID,
-					DynamicID: dy.DynamicID,
-					RID:       dy.RID,
-					Type:      dy.CommentType,
-					Time:      dy.Time,
-					Updated:   false,
+					UserID:  user.ID,
+					RID:     dy.RID,
+					Type:    dy.CommentType,
+					Time:    dy.Time,
+					Updated: false,
 				}
 
 				lis.db.Add(dynaimc)
@@ -108,7 +107,7 @@ func NewListen(db db.DB, cache cache.Cacher, log *logrus.Entry) *ListenUpdate {
 		Duration: time.Duration(time.Minute * time.Duration(conf.Duration)),
 		Listen:   *li,
 		log:      log,
-		enable:   conf.Satrt,
+		Enable:   conf.Satrt,
 	}
 
 	return listen

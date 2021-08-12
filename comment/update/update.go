@@ -1,4 +1,4 @@
-package comment
+package update
 
 import (
 	"context"
@@ -78,34 +78,37 @@ func (update Update) dynamic(user entry.User) {
 
 DynamicPage:
 	for {
+		update.currentLimit.Acquire(update.Ctx, update.weight)
 		resp, err := api.GetDynamicSrvSpaceHistory(user.UID, offect)
 		if err != nil || resp.Data.HasMore != 1 {
 			update.log.WithField("Func", "Update api.GetDynamicSrvSpaceHistory").Errorln(err, " ", resp.Message)
+			update.currentLimit.Release(update.weight)
 			break DynamicPage
 		}
 
 		for _, v := range resp.Data.Cards {
 			info, err := api.GetOriginCard(v)
 			if err != nil {
-				update.log.WithField("Func", "Update api.GetOriginCard").Errorln(err, info.CommentType, v.Desc.OrigType, user.UID, offect)
+				update.log.WithField("Func", "Update api.GetOriginCard").Errorln(err)
 				continue
 			}
 
 			if info.Time <= timestamp {
+				update.currentLimit.Release(update.weight)
 				break DynamicPage
 			}
 
 			dynamics = append(dynamics, &entry.Dynamic{
-				UID:       user.UID,
-				DynamicID: info.DynamicID,
-				RID:       info.RID,
-				Type:      info.CommentType,
-				Time:      info.Time,
-				Updated:   false,
+				UserID:  user.ID,
+				RID:     info.RID,
+				Type:    info.CommentType,
+				Time:    info.Time,
+				Updated: false,
 			})
 			user.Name = info.Name
 		}
 		offect = resp.Data.NextOffset
+		update.currentLimit.Release(update.weight)
 	}
 
 	for i := len(dynamics) - 1; i >= 0; i-- {
@@ -133,6 +136,7 @@ func (update *Update) Comment() {
 		Order: "time asc",
 		Query: "is_update = ?",
 		Args:  []interface{}{false},
+		Page:  -1,
 	})
 	if err != nil {
 		update.log.WithField("Func", "DB.Find").Error(err)
@@ -188,9 +192,11 @@ func (update Update) comment(dynamic entry.Dynamic) {
 				UID:       comment.Mid,
 				UName:     comment.Member.Uname,
 				Comment:   comment.Content.Message,
-				CommentID: dynamic.RID,
 				Like:      uint32(comment.Like),
 				Time:      comment.Ctime,
+				Rpid:      comment.Rpid,
+				DynamicID: dynamic.ID,
+				UserID:    dynamic.UserID,
 			})
 		}
 		update.db.Add(comm)
@@ -206,3 +212,27 @@ func (update Update) comment(dynamic entry.Dynamic) {
 		Field: []string{"is_update"},
 	})
 }
+
+// func (update Update) rank() {
+// 	id, err := update.cache.Get("LastRankID")
+// 	if err != nil {
+// 		id = "0"
+// 	}
+// 	comms, err := update.db.Find(&entry.Comment{}, db.Param{
+// 		Page:  -1,
+// 		Order: "id asc",
+// 		Query: "id > ?",
+// 		Args:  []interface{}{id},
+// 	})
+// 	if err != nil {
+// 		return
+// 	}
+
+// 	for _, comm := range *comms.(*[]entry.Comment) {
+// 		update.db.Find(&entry.Article{}, db.Param{
+// 			Page:  -1,
+// 			Order: "id asc",
+// 			Query: "",
+// 		})
+// 	}
+// }

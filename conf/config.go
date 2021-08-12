@@ -8,7 +8,7 @@ import (
 
 var (
 	RunMode, SQL, Host, User, Password, DBName, LogPath, CacheFile string
-	Port, DefaultK, MaxOpen, DefaultPS, MaxConn, HeapLength        int
+	Port, DefaultK, MaxOpen, DefaultPS, MaxConn, HeapLength, Size  int
 	Duration, GoroutineNum                                         int64
 	DefaultB                                                       float64
 	Satrt                                                          bool
@@ -21,6 +21,7 @@ func init() {
 	}
 	RunMode = cfg.Section("web").Key("RUN_MODE").MustString("debug")
 	Port = cfg.Section("web").Key("PORT").MustInt(8000)
+	Size = cfg.Section("web").Key("SIZE").MustInt(10)
 
 	DefaultB = cfg.Section("check").Key("DEFAULT_B").MustFloat64(2)
 	DefaultK = cfg.Section("check").Key("DEFAULT_K").MustInt(8)

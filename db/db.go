@@ -11,7 +11,6 @@ import (
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 	"gorm.io/plugin/dbresolver"
 )
 
@@ -62,35 +61,38 @@ func New() (*DB, error) {
 func (db DB) migrateTable() {
 	if !db.db.Migrator().HasTable(&entry.User{}) {
 		db.db.AutoMigrate(&entry.User{})
-		fmt.Println(db.Add(&entry.User{
+		if err := db.Add(&entry.User{
 			UID:             351609538,
 			LastDynamicTime: 1606403616, // 1627381252
-		}))
-		fmt.Println(db.Add(&entry.User{
+		}); err != nil {
+			panic(err)
+		}
+		if err := db.Add(&entry.User{
 			UID:             672328094,
 			LastDynamicTime: 1606133780, // 1627381148
-		}))
-		fmt.Println(db.Add(&entry.User{
+		}); err != nil {
+			panic(err)
+		}
+		if err := db.Add(&entry.User{
 			UID:             672353429,
 			LastDynamicTime: 1606403340,
-		}))
-		fmt.Println(db.Add(&entry.User{
+		}); err != nil {
+			panic(err)
+		}
+		if err := db.Add(&entry.User{
 			UID:             672346917,
 			LastDynamicTime: 1606403478,
-		}))
-		fmt.Println(db.Add(&entry.User{
+		}); err != nil {
+			panic(err)
+		}
+		if err := db.Add(&entry.User{
 			UID:             672342685,
 			LastDynamicTime: 1606403225,
-		}))
+		}); err != nil {
+			panic(err)
+		}
 	}
-	db.db.AutoMigrate(&entry.Comment{}, &entry.Dynamic{})
-}
-
-type Param struct {
-	Order string
-	Field []string
-	Query string
-	Args  []interface{}
+	db.db.AutoMigrate(&entry.Comment{}, &entry.Dynamic{}, &entry.Article{})
 }
 
 func (db DB) Get(model entry.Modeler) (interface{}, error) {
@@ -106,9 +108,10 @@ func (db DB) Get(model entry.Modeler) (interface{}, error) {
 func (db DB) Find(model entry.Modeler, param Param) (interface{}, error) {
 	db.mutex.Lock()
 	defer db.mutex.Unlock()
+
 	models := model.GetModels()
 
-	if db.db.Select(param.Field).Order(param.Order).Where(param.Query, param.Args...).Find(models).RowsAffected == 0 {
+	if db.db.Scopes(filter(param)).Find(models).RowsAffected == 0 {
 		return models, fmt.Errorf(ErrNotFound)
 	}
 	return models, db.db.Error
@@ -118,16 +121,7 @@ func (db DB) Add(model entry.Modeler) error {
 	db.mutex.Lock()
 	defer db.mutex.Unlock()
 
-	if conf.SQL == "mysql" {
-		return db.db.Clauses(clause.Insert{
-			Modifier: "IGNORE",
-		}).Create(model).Error
-	} else if conf.SQL == "sqlite" {
-		return db.db.Clauses(clause.Insert{
-			Modifier: "OR IGNORE",
-		}).Create(model).Error
-	}
-	return fmt.Errorf(ErrHasNoDataBase)
+	return db.db.Clauses(model.GetClauses()).Create(model).Error
 }
 
 func (db DB) Update(model entry.Modeler, param Param) error {
