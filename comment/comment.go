@@ -34,8 +34,29 @@ func New(db_ db.DB, cache cache.Cacher, log *logrus.Entry) *Comment {
 		}
 	}
 
-	if err := cache.Increment(db_, check.HashSet); err != nil {
-		log.WithField("Func", "cache.Increment").Error(err)
+	val, err := cache.Get("LastCommentID")
+	if err != nil {
+		val = "0"
+	}
+
+	comms, err := db_.Find(&entry.Comment{}, db.Param{
+		Page:  -1,
+		Query: "id > ?",
+		Args:  []interface{}{val},
+		Order: "id",
+	})
+	if err != nil {
+		return c
+	}
+
+	for _, comm := range *comms.(*[]entry.Comment) {
+		if err := cache.Increment(comm, check.HashSet(comm.Comment)); err != nil {
+			log.WithField("Func", "cache.Increment").Error(err)
+		}
+	}
+
+	if err := cache.Save(); err != nil {
+		log.WithField("Func", "cache.Save").Error(err)
 	}
 
 	return c

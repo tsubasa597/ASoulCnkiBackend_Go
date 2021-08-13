@@ -84,11 +84,18 @@ func (lis ListenUpdate) load(user *entry.User, timestamp int32, ctx context.Cont
 
 func NewListen(db db.DB, cache cache.Cacher, log *logrus.Entry) *ListenUpdate {
 	var (
-		weight    int64 = 1
-		dystarted int32 = 0
-		costarted int32 = 0
-		wait      int32 = 0
-		li, ctx         = listen.New(listen.NewDynamic(), api.API{}, log)
+		weight                     int64      = 1
+		dystarted, costarted, wait int32      = 0, 0, 0
+		li, ctx                               = listen.New(listen.NewDynamic(), api.API{}, log)
+		commentPool, dynamicPool   *sync.Pool = &sync.Pool{
+			New: func() interface{} {
+				return entry.Comment{}
+			},
+		}, &sync.Pool{
+			New: func() interface{} {
+				return entry.Dynamic{}
+			},
+		}
 	)
 
 	listen := &ListenUpdate{
@@ -103,6 +110,8 @@ func NewListen(db db.DB, cache cache.Cacher, log *logrus.Entry) *ListenUpdate {
 			commentStarted: &costarted,
 			Wait:           &wait,
 			wg:             &sync.WaitGroup{},
+			commentPool:    commentPool,
+			dynamicPool:    dynamicPool,
 		},
 		Duration: time.Duration(time.Minute * time.Duration(conf.Duration)),
 		Listen:   *li,

@@ -7,7 +7,6 @@ import (
 
 	"github.com/tidwall/buntdb"
 	"github.com/tsubasa597/ASoulCnkiBackend/conf"
-	"github.com/tsubasa597/ASoulCnkiBackend/db"
 	"github.com/tsubasa597/ASoulCnkiBackend/db/entry"
 )
 
@@ -113,37 +112,22 @@ func (c Comment) Save() error {
 	return c.db.Save(file)
 }
 
-func (c Comment) Increment(db_ db.DB, f func(string) map[int64]struct{}) error {
+func (c Comment) Increment(comm entry.Comment, hashSet map[int64]struct{}) error {
 	err := c.db.Update(func(tx *buntdb.Tx) error {
-		val, err := tx.Get("LastCommentID")
-		if err != nil {
-			val = "0"
-		}
-
-		comms, err := db_.Find(&entry.Comment{}, db.Param{
-			Query: "id > ?",
-			Args:  []interface{}{val},
-			Order: "id",
-		})
-		if err != nil {
-			return err
-		}
-
-		for _, v := range *comms.(*[]entry.Comment) {
-			for k := range f(v.Comment) {
-				if val, err := tx.Get(fmt.Sprint(v.ID)); err == nil {
-					tx.Set(fmt.Sprint(k), val+","+fmt.Sprint(v.ID), nil)
-					continue
-				}
-				tx.Set(fmt.Sprint(k), fmt.Sprint(v.ID), nil)
+		for k := range hashSet {
+			if val, err := tx.Get(fmt.Sprint(k)); err == nil {
+				tx.Set(fmt.Sprint(k), val+","+fmt.Sprint(comm.ID), nil)
+				continue
 			}
-			tx.Set("LastCommentID", fmt.Sprint(v.ID), nil)
+			tx.Set(fmt.Sprint(k), fmt.Sprint(comm.ID), nil)
 		}
+		tx.Set("LastCommentID", fmt.Sprint(comm.ID), nil)
+
 		return nil
 	})
 	if err != nil {
 		return err
 	}
 
-	return c.Save()
+	return nil
 }

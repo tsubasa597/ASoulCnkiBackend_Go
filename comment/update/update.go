@@ -26,6 +26,8 @@ type Update struct {
 	weight         int64
 	wg             *sync.WaitGroup
 	log            *logrus.Entry
+	commentPool    *sync.Pool
+	dynamicPool    *sync.Pool
 	commentStarted *int32
 	dynamicStarted *int32
 }
@@ -58,7 +60,7 @@ func (update *Update) Dynamic() {
 
 	for _, user := range *users.(*[]entry.User) {
 		update.wg.Add(1)
-		update.dynamic(user)
+		go update.dynamic(user)
 	}
 
 	update.wg.Wait()
@@ -182,13 +184,13 @@ func (update Update) comment(dynamic entry.Dynamic) {
 			break
 		}
 
-		comm := make(entry.Comments, 0, len(comments.Data.Replies))
+		comms := make(entry.Comments, 0, len(comments.Data.Replies))
 		for _, comment := range comments.Data.Replies {
 			if utf8.RuneCountInString(check.ReplaceStr(comment.Content.Message)) < conf.DefaultK {
 				continue
 			}
 
-			comm = append(comm, &entry.Comment{
+			comm := &entry.Comment{
 				UID:       comment.Mid,
 				UName:     comment.Member.Uname,
 				Comment:   comment.Content.Message,
@@ -197,20 +199,25 @@ func (update Update) comment(dynamic entry.Dynamic) {
 				Rpid:      comment.Rpid,
 				DynamicID: dynamic.ID,
 				UserID:    dynamic.UserID,
-			})
-		}
-		update.db.Add(comm)
-		update.currentLimit.Release(update.weight)
-	}
+			}
 
-	if err := update.cache.Increment(update.db, check.HashSet); err != nil {
-		update.log.WithField("Func", "Increment").Error(err)
+			if err := update.cache.Increment(*comm, check.HashSet(comment.Content.Message)); err != nil {
+				update.log.WithField("Func", "Increment").Error(err)
+			}
+			comms = append(comms, comm)
+		}
+		update.currentLimit.Release(update.weight)
+		update.db.Add(comms)
 	}
 
 	dynamic.Updated = true
 	update.db.Update(&dynamic, db.Param{
 		Field: []string{"is_update"},
 	})
+
+	if err := update.cache.Save(); err != nil {
+		update.log.WithField("Func", "cache.Save").Error(err)
+	}
 }
 
 // func (update Update) rank() {

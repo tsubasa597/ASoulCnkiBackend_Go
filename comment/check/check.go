@@ -3,7 +3,6 @@ package check
 import (
 	"container/heap"
 	"fmt"
-	"strconv"
 	"strings"
 	"unicode/utf8"
 
@@ -43,10 +42,10 @@ func (check Check) Compare(s string) CompareResults {
 
 	for id, count := range counts {
 		charNum := utf8.RuneCountInString(s)
-		id_, _ := strconv.Atoi(id)
+
 		comms, err := check.db.Find(&entry.Comment{}, db.Param{
 			Query: "id = ?",
-			Args:  []interface{}{id_},
+			Args:  []interface{}{id},
 			Order: "id asc",
 			Page:  -1,
 		})
@@ -55,10 +54,12 @@ func (check Check) Compare(s string) CompareResults {
 		}
 
 		comm := (*comms.(*[]entry.Comment))[0]
-		if utf8.RuneCountInString(comm.Comment) >= charNum {
+
+		n := utf8.RuneCountInString(ReplaceStr(comm.Comment))
+		if n >= charNum {
 			heap.Push(&commResults, CompareResult{
 				Comment:    &comm,
-				Similarity: count / float64(utf8.RuneCountInString(comm.Comment)-conf.DefaultK+1),
+				Similarity: count / float64(n-conf.DefaultK+1),
 			})
 		}
 	}
@@ -74,7 +75,6 @@ func (check Check) Compare(s string) CompareResults {
 
 func ReplaceStr(s string) string {
 	return replacer.Replace(s)
-
 }
 
 var (
