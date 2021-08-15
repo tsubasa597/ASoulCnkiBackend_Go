@@ -55,7 +55,7 @@ func (check Check) Compare(s string) CompareResults {
 
 		comm := (*comms.(*[]entry.Comment))[0]
 
-		n := utf8.RuneCountInString(ReplaceStr(comm.Comment))
+		n := utf8.RuneCountInString(ReplaceStr(comm.Content))
 		if n >= charNum {
 			heap.Push(&commResults, CompareResult{
 				Comment:    &comm,

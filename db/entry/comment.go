@@ -1,7 +1,6 @@
 package entry
 
 import (
-	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
@@ -10,12 +9,14 @@ type Comment struct {
 	UID       int64  `json:"uid" gorm:"column:uid"`
 	UName     string `json:"uname" gorm:"column:uname"`
 	Rpid      int64  `json:"rpid" gorm:"column:rpid"`
-	Comment   string `json:"comment" gorm:"column:comment"`
-	Time      int64  `json:"comment_time" gorm:"column:time"`
-	Like      uint32 `json:"like" gorm:"column:like"`
-	UserID    uint64
-	DynamicID uint64
-	Dynamic   *Dynamic `gorm:"foreignKey:DynamicID"`
+	Content   string `json:"content" gorm:"column:content"`
+	Like      uint32 `json:"like" gorm:"column:like;index:idx_like_time"`
+	TotalLike uint32 `json:"total_like" gorm:"column:total_like;index:idx_tl_time"`
+	Num       uint32 `json:"num" gorm:"column:num;index:idx_num_time"`
+	Time      int64  `json:"comment_time" gorm:"column:time;index:idx_like_time;index:idx_tl_time;index:idx_num_time"`
+	DynamicID uint64 `json:"-"`
+	UserID    uint64 `json:"-"`
+	// Dynamic   *Dynamic `json:"-" gorm:"foreignKey:DynamicID"`
 }
 
 var _ Modeler = (*Comment)(nil)
@@ -26,28 +27,6 @@ func (Comment) GetModels() interface{} {
 
 func (Comment) TableName() string {
 	return "comment"
-}
-
-func (c *Comment) AfterCreate(tx *gorm.DB) error {
-	if err := tx.Clauses(clause.OnConflict{
-		Columns: []clause.Column{{Name: "comment_text"}},
-		DoUpdates: clause.Assignments(map[string]interface{}{
-			"total_like": gorm.Expr("`total_like` + ?", c.Like),
-			"num":        gorm.Expr("`num` + 1"),
-		}),
-	}).Create(&Article{
-		Like:        c.Like,
-		Time:        c.Time,
-		TotalLike:   c.Like,
-		Num:         0,
-		CommentText: c.Comment,
-		CommentID:   c.ID,
-		UserID:      c.UserID,
-	}).Error; err != nil {
-		return err
-	}
-
-	return nil
 }
 
 type Comments []*Comment

@@ -31,7 +31,7 @@ const (
 	NumSort       Sort = 3
 )
 
-func NewFilter(t Time, users []entry.User, sort Sort) (p Param) {
+func NewFilter(t Time, uids []string, sort Sort) (p Param) {
 	p.Query = "time > ?"
 	switch t {
 	case OneWeek:
@@ -51,15 +51,11 @@ func NewFilter(t Time, users []entry.User, sort Sort) (p Param) {
 		p.Order = "num desc"
 	}
 
-	if len(users) < 1 {
+	if len(uids) < 1 {
 		return
 	}
 
 	p.Query += " and user_id in ?"
-	uids := make([]int64, len(users))
-	for _, user := range users {
-		uids = append(uids, int64(user.ID))
-	}
 	p.Args = append(p.Args, uids)
 
 	return

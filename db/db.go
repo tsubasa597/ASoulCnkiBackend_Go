@@ -92,7 +92,7 @@ func (db DB) migrateTable() {
 			panic(err)
 		}
 	}
-	db.db.AutoMigrate(&entry.Comment{}, &entry.Dynamic{}, &entry.Article{})
+	db.db.AutoMigrate(&entry.Comment{}, &entry.Dynamic{} /**&entry.Article{}*/)
 }
 
 func (db DB) Get(model entry.Modeler) (interface{}, error) {
@@ -136,6 +136,38 @@ func (db DB) Delete(model entry.Modeler) error {
 	defer db.mutex.Unlock()
 
 	return db.db.Delete(model).Error
+}
+
+func (db DB) Rank(time, sort string, uids []string) interface{} {
+	comms := []*entry.Comment{}
+	db.db.Model(&entry.Comment{}).Where("user_id in (?) and time > ?", uids, time).Order(sort).Scan(&comms)
+	return comms
+}
+
+func (db DB) Flush(dynamic entry.Dynamic) error {
+	comms := []*entry.Comment{}
+	if err := db.db.Table("(?)", db.db.Model(&entry.Comment{}).Select("content", "sum(like) as total_like", "count(id) as num", "time").
+		Where("dynamic_id = ?", dynamic.ID).Group("content").Order("time asc")).
+		Select("content", "num", "total_like").Where("num > 1 or total_like > 0").
+		Scan(&comms).Error; err != nil {
+
+		return err
+	}
+
+	for _, comm := range comms {
+		c := entry.Comment{}
+		if db.db.Select("id", "total_like", "num").Where("content = ? and dynamic_id <> ?", comm.Content, dynamic.ID).Order("time asc").Take(&c).RowsAffected == 0 {
+			comm.Num -= 1
+			db.db.Select("total_like", "num").Where("id = (?)", db.db.Table("comment").
+				Select("id").Where("content = ?", comm.Content).Order("time asc").Limit(1)).
+				Order("time asc").Limit(1).Updates(comm)
+			continue
+		}
+		c.TotalLike += comm.TotalLike
+		c.Num += comm.Num
+		db.db.Model(comm).Select("total_like", "num").Where("id", c.ID).Updates(&c)
+	}
+	return nil
 }
 
 const (

@@ -1,10 +1,7 @@
 package rank
 
 import (
-	"fmt"
-
 	"github.com/tsubasa597/ASoulCnkiBackend/db"
-	"github.com/tsubasa597/ASoulCnkiBackend/db/entry"
 )
 
 type Rank struct {
@@ -17,7 +14,7 @@ func NewRank(db db.DB) *Rank {
 	}
 }
 
-func (r Rank) R() {
-	fmt.Println(r.db.Find(&entry.Article{}, db.NewFilter(db.All, []entry.User{}, db.TotalLikeSort)))
-
+func (r Rank) Do(time, sort string, uids ...string) (interface{}, error) {
+	return r.db.Rank(time, sort, uids), nil
+	// return r.db.Find(&entry.Comments{}, param)
 }

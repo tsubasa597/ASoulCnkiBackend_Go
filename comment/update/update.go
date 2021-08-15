@@ -26,8 +26,6 @@ type Update struct {
 	weight         int64
 	wg             *sync.WaitGroup
 	log            *logrus.Entry
-	commentPool    *sync.Pool
-	dynamicPool    *sync.Pool
 	commentStarted *int32
 	dynamicStarted *int32
 }
@@ -113,13 +111,12 @@ DynamicPage:
 		update.currentLimit.Release(update.weight)
 	}
 
+	update.db.Update(&user, db.Param{
+		Field: []string{"name"},
+	})
+
 	for i := len(dynamics) - 1; i >= 0; i-- {
 		update.db.Add(dynamics[i])
-
-		user.LastDynamicTime = dynamics[i].Time
-		update.db.Update(&user, db.Param{
-			Field: []string{"dynamic_time", "name"},
-		})
 	}
 }
 
@@ -145,42 +142,35 @@ func (update *Update) Comment() {
 		return
 	}
 
+	atomic.AddInt32(update.Wait, int32(len(*dynamics.(*[]entry.Dynamic))))
 	for _, dynamic := range *dynamics.(*[]entry.Dynamic) {
-		update.wg.Add(1)
-		go update.comment(dynamic)
+		update.comment(dynamic)
 	}
 
 	update.wg.Wait()
 }
 
 func (update Update) comment(dynamic entry.Dynamic) {
-	defer update.wg.Done()
-
 	if dynamic.Updated {
 		return
 	}
 
-	atomic.AddInt32(update.Wait, 1)
 	defer atomic.AddInt32(update.Wait, -1)
 
 	for i := 1; true; i++ {
-		update.currentLimit.Acquire(update.Ctx, update.weight)
 		comments, err := api.GetComments(dynamic.Type, 0, dynamic.RID, conf.DefaultPS, i)
 		if err != nil {
 			update.log.WithField("Func", "UpdateComment api.GetComments").Errorln(err)
-			update.currentLimit.Release(update.weight)
 			continue
 		}
 
 		if comments.Code != 0 {
 			update.log.WithField("Func", "UpdateComment Code").Errorln(comments.Message)
-			update.currentLimit.Release(update.weight)
 			return
 		}
 
 		if len(comments.Data.Replies) == 0 {
 			update.log.WithField("Func", "UpdateComment Replies").Info(dynamic.Type, dynamic.RID, i)
-			update.currentLimit.Release(update.weight)
 			break
 		}
 
@@ -193,7 +183,7 @@ func (update Update) comment(dynamic entry.Dynamic) {
 			comm := &entry.Comment{
 				UID:       comment.Mid,
 				UName:     comment.Member.Uname,
-				Comment:   comment.Content.Message,
+				Content:   comment.Content.Message,
 				Like:      uint32(comment.Like),
 				Time:      comment.Ctime,
 				Rpid:      comment.Rpid,
@@ -206,8 +196,10 @@ func (update Update) comment(dynamic entry.Dynamic) {
 			}
 			comms = append(comms, comm)
 		}
-		update.currentLimit.Release(update.weight)
-		update.db.Add(comms)
+
+		if err := update.db.Add(comms); err != nil {
+			update.log.WithField("Func", "db.Add").Error(err)
+		}
 	}
 
 	dynamic.Updated = true
@@ -218,6 +210,7 @@ func (update Update) comment(dynamic entry.Dynamic) {
 	if err := update.cache.Save(); err != nil {
 		update.log.WithField("Func", "cache.Save").Error(err)
 	}
+	update.db.Flush(dynamic)
 }
 
 // func (update Update) rank() {

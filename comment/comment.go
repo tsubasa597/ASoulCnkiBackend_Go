@@ -4,6 +4,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/tsubasa597/ASoulCnkiBackend/cache"
 	"github.com/tsubasa597/ASoulCnkiBackend/comment/check"
+	"github.com/tsubasa597/ASoulCnkiBackend/comment/rank"
 	"github.com/tsubasa597/ASoulCnkiBackend/comment/update"
 	"github.com/tsubasa597/ASoulCnkiBackend/db"
 	"github.com/tsubasa597/ASoulCnkiBackend/db/entry"
@@ -12,10 +13,12 @@ import (
 type Comment struct {
 	*update.ListenUpdate
 	check.Check
+	rank.Rank
 }
 
 func New(db_ db.DB, cache cache.Cacher, log *logrus.Entry) *Comment {
 	c := &Comment{
+		Rank:         *rank.NewRank(db_),
 		ListenUpdate: update.NewListen(db_, cache, log),
 		Check:        check.New(db_, cache),
 	}
@@ -50,7 +53,7 @@ func New(db_ db.DB, cache cache.Cacher, log *logrus.Entry) *Comment {
 	}
 
 	for _, comm := range *comms.(*[]entry.Comment) {
-		if err := cache.Increment(comm, check.HashSet(comm.Comment)); err != nil {
+		if err := cache.Increment(comm, check.HashSet(comm.Content)); err != nil {
 			log.WithField("Func", "cache.Increment").Error(err)
 		}
 	}
