@@ -23,19 +23,19 @@ func New(db_ db.DB, cache cache.Cacher, log *logrus.Entry) *Comment {
 		Check:        check.New(db_, cache),
 	}
 
-	if c.ListenUpdate.Enable {
-		users, err := db_.Find(&entry.User{}, db.Param{
-			Order: "id asc",
-			Page:  -1,
-		})
-		if err != nil {
-			return c
-		}
+	// if c.ListenUpdate.Enable {
+	// 	users, err := db_.Find(&entry.User{}, db.Param{
+	// 		Order: "id asc",
+	// 		Page:  -1,
+	// 	})
+	// 	if err != nil {
+	// 		return c
+	// 	}
 
-		for _, user := range *users.(*[]entry.User) {
-			c.ListenUpdate.Add(user)
-		}
-	}
+	// 	for _, user := range *users.(*[]entry.User) {
+	// 		c.ListenUpdate.Add(user)
+	// 	}
+	// }
 
 	val, err := cache.Get("LastCommentID")
 	if err != nil {
@@ -44,16 +44,16 @@ func New(db_ db.DB, cache cache.Cacher, log *logrus.Entry) *Comment {
 
 	comms, err := db_.Find(&entry.Comment{}, db.Param{
 		Page:  -1,
-		Query: "id > ?",
+		Query: "rpid > ?",
 		Args:  []interface{}{val},
-		Order: "id",
+		Order: "rpid",
 	})
 	if err != nil {
 		return c
 	}
 
 	for _, comm := range *comms.(*[]entry.Comment) {
-		if err := cache.Increment(comm, check.HashSet(comm.Content)); err != nil {
+		if err := cache.Increment(comm.Rpid, check.HashSet(comm.Content)); err != nil {
 			log.WithField("Func", "cache.Increment").Error(err)
 		}
 	}

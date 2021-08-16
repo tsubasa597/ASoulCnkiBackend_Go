@@ -9,9 +9,9 @@ import (
 var (
 	RunMode, SQL, Host, User, Password, DBName, LogPath, CacheFile string
 	Port, DefaultK, MaxOpen, DefaultPS, MaxConn, HeapLength, Size  int
-	Duration, GoroutineNum                                         int64
+	CommentDuration, DynamicDuration, GoroutineNum                 int64
 	DefaultB                                                       float64
-	Satrt                                                          bool
+	Enable                                                         bool
 )
 
 func init() {
@@ -39,8 +39,9 @@ func init() {
 
 	LogPath = cfg.Section("log").Key("PATH").MustString("./log")
 
-	Satrt = cfg.Section("listen").Key("START").MustBool(true)
-	Duration = cfg.Section("listen").Key("DURATION").MustInt64(5)
+	Enable = cfg.Section("listen").Key("ENABLE").MustBool(true)
+	CommentDuration = cfg.Section("listen").Key("COMMENT_DURATION").MustInt64(10)
+	DynamicDuration = cfg.Section("listen").Key("DYNAMIC_DURATION").MustInt64(5)
 	GoroutineNum = cfg.Section("listen").Key("GOROUTINE_NUM").MustInt64(10)
 
 	CacheFile = cfg.Section("cache").Key("PATH").MustString("./cache.dat")

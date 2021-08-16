@@ -19,11 +19,11 @@ import (
 )
 
 type ListenUpdate struct {
-	listen.Listen
+	*listen.Listen
 	Update
-	Enable   bool
-	Duration time.Duration
-	log      *logrus.Entry
+	Enable bool
+	log    *logrus.Entry
+	cancel context.CancelFunc
 }
 
 func (lis ListenUpdate) Started() bool {
@@ -32,46 +32,43 @@ func (lis ListenUpdate) Started() bool {
 			(atomic.LoadInt32(lis.Update.dynamicStarted) == 1))
 }
 
+func (lis ListenUpdate) Stop() {
+	lis.cancel()
+}
+
 func (lis ListenUpdate) Add(user entry.User) {
 	if !lis.Started() {
 		return
 	}
 
-	ctx, ch, err := lis.Listen.Add(user.UID, user.LastDynamicTime, lis.Duration)
+	ctx, ch, err := lis.Listen.Add(user.UID, user.LastDynamicTime, time.Duration(conf.DynamicDuration)*time.Minute)
 	if err != nil {
 		lis.log.WithField("Func", "Listen.Add").Error(err)
 		return
 	}
 
 	lis.log.WithField("Func", "ListenUpdate.Add").Info(fmt.Sprintf("Listen %d", user.UID))
-	go lis.load(&user, user.LastDynamicTime, ctx, ch)
+	go lis.listen(user.ID, ch, ctx)
 }
 
-func (lis ListenUpdate) load(user *entry.User, timestamp int32, ctx context.Context, ch <-chan []info.Infoer) {
+func (lis ListenUpdate) listen(userID uint64, ch chan []info.Infoer, ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case infos := <-ch:
 			for _, in := range infos {
-				dy := in.GetInstance().(*info.Dynamic)
-
-				if timestamp >= dy.Time {
-					break
-				}
-
-				dynaimc := &entry.Dynamic{
-					UserID:  user.ID,
+				dy := in.GetInstance().(info.Dynamic)
+				if err := lis.db.Add(&entry.Dynamic{
 					RID:     dy.RID,
 					Type:    dy.CommentType,
 					Time:    dy.Time,
 					Updated: false,
+					Name:    dy.Name,
+					UserID:  userID,
+				}); err != nil {
+					lis.log.WithField("Func", "db.Add").Error(err)
 				}
-
-				lis.db.Add(dynaimc)
-
-				lis.wg.Add(1)
-				go lis.comment(*dynaimc)
 			}
 		}
 	}
@@ -97,10 +94,23 @@ func NewListen(db db.DB, cache cache.Cacher, log *logrus.Entry) *ListenUpdate {
 			Wait:           &wait,
 			wg:             &sync.WaitGroup{},
 		},
-		Duration: time.Duration(time.Minute * time.Duration(conf.Duration)),
-		Listen:   *li,
-		log:      log,
-		Enable:   conf.Satrt,
+		Listen: li,
+		log:    log,
+		Enable: conf.Enable,
+	}
+
+	if conf.Enable {
+		go func(ticker <-chan time.Time, ctx context.Context) {
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case <-ticker:
+					listen.log.WithField("Func", "listen.Comment").Info("Comment Begin")
+					go listen.Comment()
+				}
+			}
+		}(time.NewTicker(time.Duration(conf.CommentDuration)*time.Minute).C, ctx)
 	}
 
 	return listen

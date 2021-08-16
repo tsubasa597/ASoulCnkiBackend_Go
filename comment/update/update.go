@@ -73,7 +73,6 @@ func (update Update) dynamic(user entry.User) {
 	var (
 		timestamp int32 = user.LastDynamicTime
 		offect    int64
-		dynamics  = make([]*entry.Dynamic, 0)
 	)
 
 DynamicPage:
@@ -98,25 +97,19 @@ DynamicPage:
 				break DynamicPage
 			}
 
-			dynamics = append(dynamics, &entry.Dynamic{
+			if err := update.db.Add(&entry.Dynamic{
 				UserID:  user.ID,
 				RID:     info.RID,
 				Type:    info.CommentType,
 				Time:    info.Time,
 				Updated: false,
-			})
-			user.Name = info.Name
+				Name:    info.Name,
+			}); err != nil {
+				update.log.WithField("Func", "db.Add").Error(err)
+			}
 		}
 		offect = resp.Data.NextOffset
 		update.currentLimit.Release(update.weight)
-	}
-
-	update.db.Update(&user, db.Param{
-		Field: []string{"name"},
-	})
-
-	for i := len(dynamics) - 1; i >= 0; i-- {
-		update.db.Add(dynamics[i])
 	}
 }
 
@@ -144,6 +137,7 @@ func (update *Update) Comment() {
 
 	atomic.AddInt32(update.Wait, int32(len(*dynamics.(*[]entry.Dynamic))))
 	for _, dynamic := range *dynamics.(*[]entry.Dynamic) {
+		update.wg.Add(1)
 		update.comment(dynamic)
 	}
 
@@ -151,6 +145,7 @@ func (update *Update) Comment() {
 }
 
 func (update Update) comment(dynamic entry.Dynamic) {
+	defer update.wg.Done()
 	if dynamic.Updated {
 		return
 	}
@@ -158,29 +153,34 @@ func (update Update) comment(dynamic entry.Dynamic) {
 	defer atomic.AddInt32(update.Wait, -1)
 
 	for i := 1; true; i++ {
+		update.currentLimit.Acquire(update.Ctx, update.weight)
 		comments, err := api.GetComments(dynamic.Type, 0, dynamic.RID, conf.DefaultPS, i)
 		if err != nil {
 			update.log.WithField("Func", "UpdateComment api.GetComments").Errorln(err)
+			update.currentLimit.Release(update.weight)
 			continue
 		}
 
 		if comments.Code != 0 {
 			update.log.WithField("Func", "UpdateComment Code").Errorln(comments.Message)
+			update.currentLimit.Release(update.weight)
 			return
 		}
 
 		if len(comments.Data.Replies) == 0 {
 			update.log.WithField("Func", "UpdateComment Replies").Info(dynamic.Type, dynamic.RID, i)
+			update.currentLimit.Release(update.weight)
 			break
 		}
+		update.currentLimit.Release(update.weight)
 
-		comms := make(entry.Comments, 0, len(comments.Data.Replies))
+		comms := make(entry.Commentators, 0, len(comments.Data.Replies))
 		for _, comment := range comments.Data.Replies {
 			if utf8.RuneCountInString(check.ReplaceStr(comment.Content.Message)) < conf.DefaultK {
 				continue
 			}
 
-			comm := &entry.Comment{
+			comm := &entry.Commentator{
 				UID:       comment.Mid,
 				UName:     comment.Member.Uname,
 				Content:   comment.Content.Message,
@@ -191,9 +191,8 @@ func (update Update) comment(dynamic entry.Dynamic) {
 				UserID:    dynamic.UserID,
 			}
 
-			if err := update.cache.Increment(*comm, check.HashSet(comment.Content.Message)); err != nil {
-				update.log.WithField("Func", "Increment").Error(err)
-			}
+			update.cache.Increment(comment.Rpid, check.HashSet(comment.Content.Message))
+
 			comms = append(comms, comm)
 		}
 
@@ -210,29 +209,4 @@ func (update Update) comment(dynamic entry.Dynamic) {
 	if err := update.cache.Save(); err != nil {
 		update.log.WithField("Func", "cache.Save").Error(err)
 	}
-	update.db.Flush(dynamic)
 }
-
-// func (update Update) rank() {
-// 	id, err := update.cache.Get("LastRankID")
-// 	if err != nil {
-// 		id = "0"
-// 	}
-// 	comms, err := update.db.Find(&entry.Comment{}, db.Param{
-// 		Page:  -1,
-// 		Order: "id asc",
-// 		Query: "id > ?",
-// 		Args:  []interface{}{id},
-// 	})
-// 	if err != nil {
-// 		return
-// 	}
-
-// 	for _, comm := range *comms.(*[]entry.Comment) {
-// 		update.db.Find(&entry.Article{}, db.Param{
-// 			Page:  -1,
-// 			Order: "id asc",
-// 			Query: "",
-// 		})
-// 	}
-// }

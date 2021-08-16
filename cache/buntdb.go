@@ -7,7 +7,6 @@ import (
 
 	"github.com/tidwall/buntdb"
 	"github.com/tsubasa597/ASoulCnkiBackend/conf"
-	"github.com/tsubasa597/ASoulCnkiBackend/db/entry"
 )
 
 type Comment struct {
@@ -112,22 +111,19 @@ func (c Comment) Save() error {
 	return c.db.Save(file)
 }
 
-func (c Comment) Increment(comm entry.Comment, hashSet map[int64]struct{}) error {
-	err := c.db.Update(func(tx *buntdb.Tx) error {
+func (c Comment) Increment(id int64, hashSet map[int64]struct{}) error {
+	c.db.Update(func(tx *buntdb.Tx) error {
 		for k := range hashSet {
 			if val, err := tx.Get(fmt.Sprint(k)); err == nil {
-				tx.Set(fmt.Sprint(k), val+","+fmt.Sprint(comm.ID), nil)
+				tx.Set(fmt.Sprint(k), val+","+fmt.Sprint(id), nil)
 				continue
 			}
-			tx.Set(fmt.Sprint(k), fmt.Sprint(comm.ID), nil)
+			tx.Set(fmt.Sprint(k), fmt.Sprint(id), nil)
 		}
-		tx.Set("LastCommentID", fmt.Sprint(comm.ID), nil)
+		tx.Set("LastCommentID", fmt.Sprint(id), nil)
 
 		return nil
 	})
-	if err != nil {
-		return err
-	}
 
 	return nil
 }

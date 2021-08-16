@@ -4,20 +4,23 @@ import (
 	"sync"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/callbacks"
 )
 
 type Dynamic struct {
 	Model
-	RID     int64 `json:"rid" gorm:"column:rid;uniqueIndex"`
-	Type    uint8 `json:"type" gorm:"column:type"`
-	Time    int32 `json:"time" gorm:"column:time"`
-	Updated bool  `json:"is_update" gorm:"column:is_update"`
+	RID     int64  `json:"rid" gorm:"column:rid;uniqueIndex"`
+	Type    uint8  `json:"type" gorm:"column:type"`
+	Time    int32  `json:"time" gorm:"column:time"`
+	Updated bool   `json:"is_update" gorm:"column:is_update"`
+	Name    string `json:"-" gorm:"-"`
 	UserID  uint64
 }
 
 var (
-	_        Modeler   = (*Dynamic)(nil)
-	userPool sync.Pool = sync.Pool{
+	_        Modeler                        = (*Dynamic)(nil)
+	_        callbacks.AfterCreateInterface = (*Dynamic)(nil)
+	userPool sync.Pool                      = sync.Pool{
 		New: func() interface{} {
 			return &User{}
 		},
@@ -27,17 +30,15 @@ var (
 func (d *Dynamic) AfterCreate(tx *gorm.DB) error {
 	user := userPool.Get().(*User)
 	defer func() {
-		user.ID = 0
+		user.Name = ""
 		user.LastDynamicTime = 0
 		userPool.Put(user)
 	}()
 
-	if err := tx.Model(user).Select("id", "dynamic_time").Where("id", d.UserID).Find(user).Error; err != nil {
-		return err
-	}
-
 	user.LastDynamicTime = d.Time
-	return tx.Model(&user).Select("dynamic_time").Updates(user).Error
+	user.Name = d.Name
+
+	return tx.Model(&user).Select("name", "dynamic_time").Where("id = ?", d.UserID).Updates(user).Error
 }
 
 func (Dynamic) GetModels() interface{} {

@@ -40,13 +40,14 @@ func (check Check) Compare(s string) CompareResults {
 		}
 	}
 
+	fmt.Println(counts)
 	for id, count := range counts {
 		charNum := utf8.RuneCountInString(s)
 
 		comms, err := check.db.Find(&entry.Comment{}, db.Param{
-			Query: "id = ?",
+			Query: "rpid = ?",
 			Args:  []interface{}{id},
-			Order: "id asc",
+			Order: "rpid asc",
 			Page:  -1,
 		})
 		if err != nil {
