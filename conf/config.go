@@ -7,11 +7,11 @@ import (
 )
 
 var (
-	RunMode, SQL, Host, User, Password, DBName, LogPath, CacheFile string
-	Port, DefaultK, MaxOpen, DefaultPS, MaxConn, HeapLength, Size  int
-	CommentDuration, DynamicDuration, GoroutineNum                 int64
-	DefaultB                                                       float64
-	Enable                                                         bool
+	RunMode, SQL, Host, User, Password, DBName, LogPath, CacheFilePath string
+	Port, DefaultK, MaxOpen, DefaultPS, MaxConn, HeapLength, Size      int
+	CommentDuration, DynamicDuration, GoroutineNum                     int64
+	DefaultB                                                           float64
+	Enable                                                             bool
 )
 
 func init() {
@@ -44,5 +44,5 @@ func init() {
 	DynamicDuration = cfg.Section("listen").Key("DYNAMIC_DURATION").MustInt64(5)
 	GoroutineNum = cfg.Section("listen").Key("GOROUTINE_NUM").MustInt64(10)
 
-	CacheFile = cfg.Section("cache").Key("PATH").MustString("./cache.dat")
+	CacheFilePath = cfg.Section("cache").Key("PATH").MustString("./cache.dat")
 }

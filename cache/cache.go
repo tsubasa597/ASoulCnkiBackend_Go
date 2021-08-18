@@ -1,9 +1,28 @@
 package cache
 
 type Cacher interface {
-	Get(interface{}) (interface{}, error)
-	Set(interface{}, interface{}) error
-	Update(interface{}, interface{}) error
+	Get(string) (string, error)
+	Set(string, string) error
 	Save() error
-	Increment(int64, map[int64]struct{}) error
+}
+
+type Cache struct {
+	Check   LevelDB
+	Content LevelDB
+}
+
+func New() (*Cache, error) {
+	check, err := NewLevelDB("/check")
+	if err != nil {
+		return nil, err
+	}
+
+	content, err := NewLevelDB("/content")
+	if err != nil {
+		return nil, err
+	}
+	return &Cache{
+		Check:   *check,
+		Content: *content,
+	}, nil
 }

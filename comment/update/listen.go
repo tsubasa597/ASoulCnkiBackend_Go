@@ -57,8 +57,8 @@ func (lis ListenUpdate) listen(userID uint64, ch chan []info.Infoer, ctx context
 		case <-ctx.Done():
 			return
 		case infos := <-ch:
-			for _, in := range infos {
-				dy := in.GetInstance().(info.Dynamic)
+			for i := len(infos) - 1; i >= 0; i-- {
+				dy := infos[i].GetInstance().(*info.Dynamic)
 				if err := lis.db.Add(&entry.Dynamic{
 					RID:     dy.RID,
 					Type:    dy.CommentType,
@@ -74,7 +74,7 @@ func (lis ListenUpdate) listen(userID uint64, ch chan []info.Infoer, ctx context
 	}
 }
 
-func NewListen(db db.DB, cache cache.Cacher, log *logrus.Entry) *ListenUpdate {
+func NewListen(db db.DB, cache cache.Cache, log *logrus.Entry) *ListenUpdate {
 	var (
 		weight                     int64 = 1
 		dystarted, costarted, wait int32 = 0, 0, 0

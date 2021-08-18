@@ -138,10 +138,31 @@ func (db DB) Delete(model entry.Modeler) error {
 	return db.db.Delete(model).Error
 }
 
-func (db DB) Rank(time, sort string, uids []string) interface{} {
-	comms := []*entry.Comment{}
-	db.db.Model(&entry.Comment{}).Where("user_id in (?) and time > ?", uids, time).Order(sort).Scan(&comms)
-	return comms
+type Param struct {
+	Page  int
+	Size  int
+	Order string
+	Field []string
+	Query string
+	Args  []interface{}
+}
+
+func filter(param Param) func(db *gorm.DB) *gorm.DB {
+	return func(db *gorm.DB) *gorm.DB {
+		if param.Size < 1 {
+			param.Size = conf.Size
+		}
+
+		if param.Page < 0 {
+			param.Page = 2
+			param.Size = -1
+		}
+
+		db = db.Select(param.Field)
+
+		return db.Where(param.Query, param.Args...).
+			Offset((param.Page - 1) * param.Size).Limit(param.Size).Order(param.Order)
+	}
 }
 
 const (

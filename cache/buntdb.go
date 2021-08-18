@@ -3,124 +3,95 @@ package cache
 import (
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 
 	"github.com/tidwall/buntdb"
 	"github.com/tsubasa597/ASoulCnkiBackend/conf"
 )
 
-type Comment struct {
-	db    *buntdb.DB
-	mutex *sync.Mutex
+type BuntDB struct {
+	db       *buntdb.DB
+	mutex    *sync.Mutex
+	fileName string
 }
 
-var _ Cacher = (*Comment)(nil)
+var _ Cacher = (*BuntDB)(nil)
 
-func (c Comment) Get(v interface{}) (interface{}, error) {
-	var data string
-
-	if s, ok := v.(string); ok {
-		if err := c.db.View(func(tx *buntdb.Tx) error {
-			var err error
-
-			data, err = tx.Get(s)
-			if err != nil {
-				return err
-			}
-
-			return nil
-		}); err != nil {
-			return nil, err
+func (b BuntDB) Get(v string) (val string, err error) {
+	if err = b.db.View(func(tx *buntdb.Tx) error {
+		val, err = tx.Get(v)
+		if err != nil {
+			return err
 		}
-	} else {
-		return nil, fmt.Errorf("type error")
-	}
 
-	return data, nil
+		return nil
+	}); err != nil {
+		return
+	}
+	return
 }
 
-func (c Comment) Set(key, value interface{}) error {
-	k, ok1 := key.(string)
-	v, ok2 := value.(string)
-
-	if ok1 && ok2 {
-		c.db.Update(func(tx *buntdb.Tx) error {
-			tx.Set(k, v, nil)
-			return nil
-		})
-	} else {
-		return fmt.Errorf("type error")
-	}
-	return nil
+func (b BuntDB) Set(key, value string) error {
+	return b.db.Update(func(tx *buntdb.Tx) error {
+		_, _, err := tx.Set(key, value, nil)
+		return err
+	})
 }
 
-func (c Comment) Update(key interface{}, value interface{}) error {
-	k, ok1 := key.(string)
-	v, ok2 := value.(string)
-
-	if ok1 && ok2 {
-		c.db.Update(func(tx *buntdb.Tx) error {
-			if val, err := tx.Get(k); err == nil {
-				tx.Set(k, val+","+v, nil)
-				return nil
-			}
-			tx.Set(k, v, nil)
-			return nil
-		})
-	} else {
-		return fmt.Errorf("type error")
-	}
-	return nil
-}
-
-func NewComment() (*Comment, error) {
-	c := &Comment{
-		mutex: &sync.Mutex{},
+func NewBuntDB(path string) (*BuntDB, error) {
+	b := &BuntDB{
+		mutex:    &sync.Mutex{},
+		fileName: path,
 	}
 
-	file, err := os.OpenFile(conf.CacheFile, os.O_RDWR|os.O_CREATE, 0755)
+	file, err := os.OpenFile(conf.CacheFilePath+b.fileName, os.O_RDWR|os.O_CREATE, 0755)
 	if err != nil {
 		return nil, err
 	}
 
-	c.db, err = buntdb.Open(":memory:")
+	b.db, err = buntdb.Open(":memory:")
 	if err != nil {
 		return nil, err
 	}
 
 	if info, _ := file.Stat(); info.Size() != 0 {
-		c.db.Load(file)
+		b.db.Load(file)
 	}
 
-	return c, nil
+	return b, nil
 }
 
-func (c Comment) Save() error {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
+func (b BuntDB) Save() error {
+	b.mutex.Lock()
+	defer b.mutex.Unlock()
 
-	if err := os.Remove(conf.CacheFile); err != nil {
+	if err := os.Remove(conf.CacheFilePath + b.fileName); err != nil {
 		return err
 	}
 
-	file, err := os.OpenFile(conf.CacheFile, os.O_RDWR|os.O_CREATE, 0755)
+	file, err := os.OpenFile(conf.CacheFilePath+b.fileName, os.O_RDWR|os.O_CREATE, 0755)
 	if err != nil {
 		return err
 	}
 
-	return c.db.Save(file)
+	return b.db.Save(file)
 }
 
-func (c Comment) Increment(id int64, hashSet map[int64]struct{}) error {
-	c.db.Update(func(tx *buntdb.Tx) error {
+func (b BuntDB) Increment(id string, hashSet map[int64]struct{}) error {
+	b.db.Update(func(tx *buntdb.Tx) error {
 		for k := range hashSet {
 			if val, err := tx.Get(fmt.Sprint(k)); err == nil {
-				tx.Set(fmt.Sprint(k), val+","+fmt.Sprint(id), nil)
+				if strings.Contains(val, id) {
+					continue
+				}
+
+				tx.Set(fmt.Sprint(k), val+","+id, nil)
 				continue
 			}
-			tx.Set(fmt.Sprint(k), fmt.Sprint(id), nil)
+			tx.Set(fmt.Sprint(k), id, nil)
 		}
-		tx.Set("LastCommentID", fmt.Sprint(id), nil)
+		tx.Set("LastCommentID", id, nil)
 
 		return nil
 	})

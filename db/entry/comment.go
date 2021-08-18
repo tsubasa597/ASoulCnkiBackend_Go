@@ -7,17 +7,16 @@ import (
 type Comment struct {
 	Model
 	Content   string `json:"content" gorm:"column:content"`
-	Like      uint32 `json:"like" gorm:"column:like;index:idx_like_time"`
-	TotalLike uint32 `json:"total_like" gorm:"column:total_like;index:idx_tl_time"`
-	Num       uint32 `json:"num" gorm:"column:num;index:idx_num_time"`
-	Time      int64  `json:"comment_time" gorm:"column:time;index:idx_like_time;index:idx_tl_time;index:idx_num_time"`
-	Rpid      int64
+	Like      uint32 `json:"like" gorm:"column:like;index:idx_time"`
+	TotalLike uint32 `json:"total_like" gorm:"column:total_like;index:idx_tl"`
+	Num       uint32 `json:"num" gorm:"column:num;index:idx_num"`
+	Time      int64  `json:"comment_time" gorm:"column:time;index:idx_time"`
+	Rpid      int64  `json:"-" gorm:"column:rpid;index:idx_rpid"`
 	UserID    uint64 `json:"-"`
 }
 
 var (
-	_ Modeler = (*Comment)(nil)
-	_ Modeler = (*Comments)(nil)
+	_, _ Modeler = (*Comment)(nil), (*Comments)(nil)
 )
 
 func (Comment) GetModels() interface{} {

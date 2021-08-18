@@ -14,25 +14,25 @@ import (
 
 type Check struct {
 	db    db.DB
-	cache cache.Cacher
+	cache cache.Cache
 }
 
-func New(db db.DB, cache cache.Cacher) Check {
+func New(db db.DB, cache cache.Cache) Check {
 	return Check{
 		db:    db,
 		cache: cache,
 	}
 }
 
-func (check Check) Compare(s string) CompareResults {
+func (check Check) Compare(s string) []entry.Comment {
 	commResults := make(CompareResults, 0, conf.HeapLength)
 	counts := make(map[string]float64)
 	for _, v := range Hash(s) {
-		val, err := check.cache.Get(fmt.Sprint(v))
+		val, err := check.cache.Check.Get(fmt.Sprint(v))
 		if err != nil {
 			continue
 		}
-		for _, id := range strings.Split(val.(string), ",") {
+		for _, id := range strings.Split(val, ",") {
 			if len(id) == 0 {
 				continue
 			}
@@ -40,38 +40,42 @@ func (check Check) Compare(s string) CompareResults {
 		}
 	}
 
-	fmt.Println(counts)
 	for id, count := range counts {
 		charNum := utf8.RuneCountInString(s)
 
-		comms, err := check.db.Find(&entry.Comment{}, db.Param{
-			Query: "rpid = ?",
-			Args:  []interface{}{id},
-			Order: "rpid asc",
-			Page:  -1,
-		})
+		content, err := check.cache.Content.Get(id)
 		if err != nil {
 			continue
 		}
 
-		comm := (*comms.(*[]entry.Comment))[0]
-
-		n := utf8.RuneCountInString(ReplaceStr(comm.Content))
+		n := utf8.RuneCountInString(ReplaceStr(string(content)))
 		if n >= charNum {
 			heap.Push(&commResults, CompareResult{
-				Comment:    &comm,
+				ID:         id,
 				Similarity: count / float64(n-conf.DefaultK+1),
 			})
 		}
 	}
 
-	for i, v := range commResults {
-		if v.Similarity < 0.2 {
-			return commResults[:i]
+	result := make([]entry.Comment, 0)
+	for len(commResults) > 0 {
+		comresult := commResults.Pop().(CompareResult)
+		if comresult.Similarity < 0.2 {
+			break
 		}
-	}
 
-	return commResults
+		comm, err := check.db.Find(&entry.Comment{}, db.Param{
+			Page:  -1,
+			Order: "rpid asc",
+			Query: "rpid = ?",
+			Args:  []interface{}{comresult.ID},
+		})
+		if err != nil {
+			continue
+		}
+		result = append(result, (*comm.(*[]entry.Comment))[0])
+	}
+	return result
 }
 
 func ReplaceStr(s string) string {

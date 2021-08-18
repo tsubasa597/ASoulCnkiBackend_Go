@@ -2,6 +2,8 @@ package update
 
 import (
 	"context"
+	"fmt"
+	"sort"
 	"sync"
 	"sync/atomic"
 	"unicode/utf8"
@@ -21,7 +23,7 @@ type Update struct {
 	Wait           *int32
 	Ctx            context.Context
 	db             db.DB
-	cache          cache.Cacher
+	cache          cache.Cache
 	currentLimit   *semaphore.Weighted
 	weight         int64
 	wg             *sync.WaitGroup
@@ -71,8 +73,9 @@ func (update Update) dynamic(user entry.User) {
 	defer atomic.AddInt32(update.Wait, -1)
 
 	var (
-		timestamp int32 = user.LastDynamicTime
-		offect    int64
+		dynamics  entry.Dynamics = make(entry.Dynamics, 0)
+		timestamp int32          = user.LastDynamicTime
+		offect    int64          = 0
 	)
 
 DynamicPage:
@@ -97,19 +100,22 @@ DynamicPage:
 				break DynamicPage
 			}
 
-			if err := update.db.Add(&entry.Dynamic{
+			dynamics = append(dynamics, &entry.Dynamic{
 				UserID:  user.ID,
 				RID:     info.RID,
 				Type:    info.CommentType,
 				Time:    info.Time,
 				Updated: false,
 				Name:    info.Name,
-			}); err != nil {
-				update.log.WithField("Func", "db.Add").Error(err)
-			}
+			})
 		}
 		offect = resp.Data.NextOffset
 		update.currentLimit.Release(update.weight)
+	}
+
+	sort.Sort(dynamics)
+	if err := update.db.Add(dynamics); err != nil {
+		update.log.WithField("Func", "db.Add").Error(err)
 	}
 }
 
@@ -191,7 +197,11 @@ func (update Update) comment(dynamic entry.Dynamic) {
 				UserID:    dynamic.UserID,
 			}
 
-			update.cache.Increment(comment.Rpid, check.HashSet(comment.Content.Message))
+			if err := update.cache.Check.Increment(fmt.Sprint(comment.Rpid),
+				check.HashSet(comment.Content.Message)); err != nil {
+				update.log.WithField("Func", "cache.Content.Increment").Error(err)
+			}
+			update.cache.Content.Set(fmt.Sprint(comment.Rpid), comment.Content.Message)
 
 			comms = append(comms, comm)
 		}
@@ -206,7 +216,7 @@ func (update Update) comment(dynamic entry.Dynamic) {
 		Field: []string{"is_update"},
 	})
 
-	if err := update.cache.Save(); err != nil {
+	if err := update.cache.Content.Save(); err != nil {
 		update.log.WithField("Func", "cache.Save").Error(err)
 	}
 }

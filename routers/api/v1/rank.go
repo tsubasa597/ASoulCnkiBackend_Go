@@ -3,6 +3,7 @@ package v1
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -10,18 +11,32 @@ import (
 
 func Rank(ctx *gin.Context) {
 	var (
-		t, sort string
+		t, sort    string
+		page, size int
+		err        error
 	)
-	ids := ctx.QueryArray("ids")
+	if page, err = strconv.Atoi(ctx.Query("page")); err != nil {
+		ctx.JSON(http.StatusOK, gin.H{
+			"res": nil,
+		})
+		return
+	}
+
+	if size, err = strconv.Atoi(ctx.Query("size")); err != nil {
+		ctx.JSON(http.StatusOK, gin.H{
+			"res": nil,
+		})
+		return
+	}
+
 	switch ctx.Query("time") {
-	case "0":
-		t = "0"
 	case "1":
 		t = fmt.Sprint(time.Now().AddDate(0, 0, -7).Unix())
 	case "2":
 		t = fmt.Sprint(time.Now().AddDate(0, 0, -3).Unix())
+	default:
+		t = "0"
 	}
-	fmt.Println(t)
 
 	switch ctx.Query("sort") {
 	case "1":
@@ -32,7 +47,7 @@ func Rank(ctx *gin.Context) {
 		sort = "num desc"
 	}
 
-	data, err := comm.Rank.Do(t, sort, ids...)
+	data, err := comm.Rank.Do(page, size, t, sort, ctx.QueryArray("ids")...)
 	if err != nil {
 		ctx.JSON(http.StatusOK, gin.H{
 			"res": nil,

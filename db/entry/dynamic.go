@@ -1,10 +1,12 @@
 package entry
 
 import (
+	"sort"
 	"sync"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/callbacks"
+	"gorm.io/gorm/clause"
 )
 
 type Dynamic struct {
@@ -18,8 +20,9 @@ type Dynamic struct {
 }
 
 var (
-	_        Modeler                        = (*Dynamic)(nil)
+	_, _     Modeler                        = (*Dynamic)(nil), (*Dynamics)(nil)
 	_        callbacks.AfterCreateInterface = (*Dynamic)(nil)
+	_        sort.Interface                 = (*Dynamics)(nil)
 	userPool sync.Pool                      = sync.Pool{
 		New: func() interface{} {
 			return &User{}
@@ -29,11 +32,7 @@ var (
 
 func (d *Dynamic) AfterCreate(tx *gorm.DB) error {
 	user := userPool.Get().(*User)
-	defer func() {
-		user.Name = ""
-		user.LastDynamicTime = 0
-		userPool.Put(user)
-	}()
+	defer userPool.Put(user)
 
 	user.LastDynamicTime = d.Time
 	user.Name = d.Name
@@ -47,4 +46,24 @@ func (Dynamic) GetModels() interface{} {
 
 func (Dynamic) TableName() string {
 	return "dynamic"
+}
+
+type Dynamics []*Dynamic
+
+func (d Dynamics) Len() int           { return len(d) }
+func (d Dynamics) Swap(i, j int)      { d[i], d[j] = d[j], d[i] }
+func (d Dynamics) Less(i, j int) bool { return d[i].Time < d[j].Time }
+
+func (Dynamics) GetModels() interface{} {
+	return &[]Dynamic{}
+}
+
+func (Dynamics) TableName() string {
+	return "dynamic"
+}
+
+func (Dynamics) GetClauses() clause.OnConflict {
+	return clause.OnConflict{
+		DoNothing: true,
+	}
 }

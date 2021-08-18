@@ -9,6 +9,7 @@ import (
 
 type CompareResult struct {
 	Comment    *entry.Comment
+	ID         string
 	Similarity float64
 }
 
@@ -21,9 +22,6 @@ func (r CompareResults) Len() int {
 }
 
 func (r CompareResults) Less(i, j int) bool {
-	if r[i].Similarity == r[j].Similarity {
-		return r[i].Comment.Time < r[j].Comment.Time
-	}
 	return r[i].Similarity > r[j].Similarity
 }
 
@@ -33,16 +31,14 @@ func (r CompareResults) Swap(i, j int) {
 
 func (r *CompareResults) Pop() interface{} {
 	old := *r
-	n := len(old)
+	*r = old[1:]
 
-	*r = old[:n-1]
-
-	return old[n-1]
+	return old[0]
 }
 
 func (r *CompareResults) Push(data interface{}) {
-	if len(*r) > conf.HeapLength {
-		*r = (*r)[:conf.HeapLength]
+	if len(*r) == conf.HeapLength {
+		*r = (*r)[:conf.HeapLength-1]
 	}
 	*r = append(*r, data.(CompareResult))
 }

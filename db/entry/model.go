@@ -4,9 +4,11 @@ import (
 	"time"
 
 	"gorm.io/gorm/clause"
+	"gorm.io/gorm/schema"
 )
 
 type Modeler interface {
+	schema.Tabler
 	GetModels() interface{}
 	GetClauses() clause.OnConflict
 }

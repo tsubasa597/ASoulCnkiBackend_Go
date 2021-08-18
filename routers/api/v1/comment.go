@@ -3,6 +3,7 @@ package v1
 import (
 	"net/http"
 	"sync/atomic"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
@@ -43,12 +44,14 @@ func init() {
 		panic(err)
 	}
 
-	cache, err := cache.NewComment()
+	cache, err := cache.New()
 	if err != nil {
 		panic(err)
 	}
 
-	comm = comment.New(*db, cache, logrus.NewEntry(logrus.StandardLogger()))
+	comm = comment.New(*db, *cache, logrus.NewEntry(logrus.StandardLogger()).
+		WithField("Time", time.Now().Format("2006/01/02 15:04:05")))
 
-	logrus.Info("Init Done...")
+	logrus.WithField("Func", "init").WithField("Time", time.Now().Format("2006/01/02 15:04:05")).
+		Info("All Done...")
 }
