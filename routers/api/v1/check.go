@@ -5,6 +5,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/gin-gonic/gin"
+	"github.com/tsubasa597/ASoulCnkiBackend/comment"
 	"github.com/tsubasa597/ASoulCnkiBackend/comment/check"
 )
 
@@ -18,6 +19,6 @@ func Check(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, gin.H{
-		"res": comm.Compare(text),
+		"res": comment.GetInstance().Compare(text),
 	})
 }

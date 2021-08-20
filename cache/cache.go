@@ -4,11 +4,12 @@ type Cacher interface {
 	Get(string) (string, error)
 	Set(string, string) error
 	Save() error
+	Increment(string, map[int64]struct{}) error
 }
 
 type Cache struct {
-	Check   LevelDB
-	Content LevelDB
+	Check   Cacher
+	Content Cacher
 }
 
 func New() (*Cache, error) {

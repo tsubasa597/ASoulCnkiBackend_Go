@@ -3,6 +3,7 @@ package rank
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/tsubasa597/ASoulCnkiBackend/db"
 	"github.com/tsubasa597/ASoulCnkiBackend/db/entry"
@@ -35,7 +36,25 @@ func NewRank(db_ db.DB) *Rank {
 	return r
 }
 
-func (r Rank) Do(page, size int, time, sort string, uids ...string) (interface{}, error) {
+func (r Rank) Do(page, size int, t, sort string, uids ...string) (interface{}, error) {
+	switch t {
+	case "1":
+		t = fmt.Sprint(time.Now().AddDate(0, 0, -7).Unix())
+	case "2":
+		t = fmt.Sprint(time.Now().AddDate(0, 0, -3).Unix())
+	default:
+		t = "0"
+	}
+
+	switch sort {
+	case "1":
+		sort = "total_like desc"
+	case "2":
+		sort = "like desc"
+	case "3":
+		sort = "num desc"
+	}
+
 	for i := range uids {
 		if id, ok := r.uid.Load(uids[i]); ok {
 			uids[i] = id.(string)
@@ -47,6 +66,6 @@ func (r Rank) Do(page, size int, time, sort string, uids ...string) (interface{}
 		Size:  size,
 		Order: sort,
 		Query: "time > ? and user_id in (?)",
-		Args:  []interface{}{time, uids},
+		Args:  []interface{}{t, uids},
 	})
 }

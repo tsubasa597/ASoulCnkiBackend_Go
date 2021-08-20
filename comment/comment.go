@@ -2,6 +2,7 @@ package comment
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/tsubasa597/ASoulCnkiBackend/cache"
@@ -84,4 +85,30 @@ func New(db_ db.DB, cache cache.Cache, log *logrus.Entry) *Comment {
 	}
 
 	return c
+}
+
+var (
+	instance *Comment
+)
+
+func GetInstance() *Comment {
+
+	return instance
+}
+
+func init() {
+	db, err := db.New()
+	if err != nil {
+		panic(err)
+	}
+
+	cache, err := cache.New()
+	if err != nil {
+		panic(err)
+	}
+
+	entry := logrus.NewEntry(logrus.StandardLogger()).
+		WithField("Time", time.Now().Format("2006/01/02 15:04:05"))
+
+	instance = New(*db, *cache, entry)
 }
