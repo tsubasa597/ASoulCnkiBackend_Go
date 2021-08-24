@@ -63,7 +63,7 @@ func New(db_ db.DB, cache cache.Cache, log *logrus.Entry) *Comment {
 	if err != nil {
 		val = "0"
 	}
-
+	// TODO : 全量写入
 	comms, err = db_.Find(&entry.Comment{}, db.Param{
 		Page:  -1,
 		Query: "rpid > ?",
@@ -92,7 +92,6 @@ var (
 )
 
 func GetInstance() *Comment {
-
 	return instance
 }
 

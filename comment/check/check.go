@@ -9,7 +9,7 @@ import (
 	"github.com/tsubasa597/ASoulCnkiBackend/cache"
 	"github.com/tsubasa597/ASoulCnkiBackend/conf"
 	"github.com/tsubasa597/ASoulCnkiBackend/db"
-	"github.com/tsubasa597/ASoulCnkiBackend/db/entry"
+	"github.com/tsubasa597/ASoulCnkiBackend/db/vo"
 )
 
 type Check struct {
@@ -24,7 +24,7 @@ func New(db db.DB, cache cache.Cache) Check {
 	}
 }
 
-func (check Check) Compare(s string) []entry.Comment {
+func (check Check) Compare(s string) vo.Related {
 	commResults := make(CompareResults, 0, conf.HeapLength)
 	counts := make(map[string]float64)
 	for _, v := range Hash(s) {
@@ -57,25 +57,33 @@ func (check Check) Compare(s string) []entry.Comment {
 		}
 	}
 
-	result := make([]entry.Comment, 0)
+	related := vo.Related{
+		Related: make([]vo.Reply, 0),
+	}
 	for len(commResults) > 0 {
 		comresult := commResults.Pop().(CompareResult)
 		if comresult.Similarity < 0.2 {
 			break
 		}
 
-		comm, err := check.db.Find(&entry.Comment{}, db.Param{
-			Page:  -1,
-			Order: "rpid asc",
-			Query: "rpid = ?",
-			Args:  []interface{}{comresult.ID},
-		})
+		reply, err := check.db.Check(comresult.ID)
 		if err != nil {
 			continue
 		}
-		result = append(result, (*comm.(*[]entry.Comment))[0])
+		related.Rate = comresult.Similarity
+		related.Related = append(related.Related, reply)
+		// comm, err := check.db.Find(&entry.Comment{}, db.Param{
+		// 	Page:  -1,
+		// 	Order: "rpid asc",
+		// 	Query: "rpid = ?",
+		// 	Args:  []interface{}{comresult.ID},
+		// })
+		// if err != nil {
+		// 	continue
+		// }
+
 	}
-	return result
+	return related
 }
 
 func ReplaceStr(s string) string {

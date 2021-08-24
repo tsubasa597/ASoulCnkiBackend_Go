@@ -23,7 +23,6 @@ type ListenUpdate struct {
 	Update
 	Enable bool
 	log    *logrus.Entry
-	cancel context.CancelFunc
 }
 
 func (lis ListenUpdate) Started() bool {
@@ -33,7 +32,7 @@ func (lis ListenUpdate) Started() bool {
 }
 
 func (lis ListenUpdate) Stop() {
-	lis.cancel()
+	lis.Listen.Stop()
 }
 
 func (lis ListenUpdate) Add(user entry.User) {

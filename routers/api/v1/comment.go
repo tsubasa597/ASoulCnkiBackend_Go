@@ -6,14 +6,17 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/tsubasa597/ASoulCnkiBackend/comment"
+	"github.com/tsubasa597/ASoulCnkiBackend/db/vo"
 )
 
 func Satus(ctx *gin.Context) {
 	instance := comment.GetInstance()
-	ctx.JSON(http.StatusOK, gin.H{
-		"started": instance.Started(),
-		"wait":    atomic.LoadInt32(instance.Wait),
-	})
+
+	ctx.JSON(http.StatusOK, vo.Sucess(vo.Status{
+		Enable:  instance.Enable,
+		Started: instance.Started(),
+		Wait:    atomic.LoadInt32(instance.Wait),
+	}))
 }
 
 func Update(ctx *gin.Context) {
