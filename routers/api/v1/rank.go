@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/tsubasa597/ASoulCnkiBackend/comment"
+	"github.com/tsubasa597/ASoulCnkiBackend/conf"
 )
 
 func Rank(ctx *gin.Context) {
@@ -14,28 +15,12 @@ func Rank(ctx *gin.Context) {
 		err        error
 	)
 	if page, err = strconv.Atoi(ctx.Query("page")); err != nil && page < 1 {
-		ctx.JSON(http.StatusOK, gin.H{
-			"res": nil,
-		})
-		return
+		page = 1
 	}
 
 	if size, err = strconv.Atoi(ctx.Query("size")); err != nil && (size < 1 || size > 30) {
-		ctx.JSON(http.StatusOK, gin.H{
-			"res": nil,
-		})
-		return
+		size = conf.Size
 	}
 
-	data, err := comment.GetInstance().Rank.Do(page, size, ctx.Query("time"), ctx.Query("sort"), ctx.QueryArray("ids")...)
-	if err != nil {
-		ctx.JSON(http.StatusOK, gin.H{
-			"res": nil,
-		})
-		return
-	}
-
-	ctx.JSON(http.StatusOK, gin.H{
-		"res": data,
-	})
+	ctx.JSON(http.StatusOK, comment.GetInstance().Rank.Do(page, size, ctx.Query("time"), ctx.Query("sort"), ctx.QueryArray("ids")...))
 }

@@ -44,37 +44,26 @@ func New(db_ db.DB, cache cache.Cache, log *logrus.Entry) *Comment {
 	if err != nil {
 		val = "0"
 	}
-	comms, err := db_.Find(&entry.Comment{}, db.Param{
-		Page:  -1,
-		Query: "rpid > ?",
-		Args:  []interface{}{val},
-		Order: "rpid",
-	})
-	if err == nil {
-		for _, comm := range *comms.(*[]entry.Comment) {
-			if err := cache.Content.Set(fmt.Sprint(comm.Rpid), comm.Content); err != nil {
-				log.WithField("Func", "cache.Set").Error(err)
-			}
-			cache.Content.Set("LastCommentID", fmt.Sprint(comm.Rpid))
+	comms := db_.GetContent(val)
+
+	for _, comm := range comms {
+		if err := cache.Content.Set(fmt.Sprint(comm.Rpid), comm.Content); err != nil {
+			log.WithField("Func", "cache.Set").Error(err)
 		}
+		cache.Content.Set("LastCommentID", fmt.Sprint(comm.Rpid))
+	}
+
+	if err := cache.Content.Save(); err != nil {
+		log.WithField("Func", "cache.Save").Error(err)
 	}
 
 	val, err = cache.Check.Get("LastCommentID")
 	if err != nil {
 		val = "0"
 	}
+	comms = db_.GetContent(val)
 
-	comms, err = db_.Find(&entry.Comment{}, db.Param{
-		Page:  -1,
-		Query: "rpid > ?",
-		Args:  []interface{}{val},
-		Order: "rpid",
-	})
-	if err != nil {
-		return c
-	}
-
-	for _, comm := range *comms.(*[]entry.Comment) {
+	for _, comm := range comms {
 		if err := cache.Check.Increment(fmt.Sprint(comm.Rpid), check.HashSet(comm.Content)); err != nil {
 			log.WithField("Func", "cache.Increment").Error(err)
 		}
@@ -92,7 +81,6 @@ var (
 )
 
 func GetInstance() *Comment {
-
 	return instance
 }
 

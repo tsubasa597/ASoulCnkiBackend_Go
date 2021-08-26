@@ -55,24 +55,23 @@ func (l LevelDB) Increment(id string, hashSet map[int64]struct{}) error {
 	key := bytes.Buffer{}
 
 	for k := range hashSet {
+		key.Reset()
 		key.WriteString(fmt.Sprint(k))
+
 		if val, err := l.db.Get(key.Bytes(), nil); err == nil {
+			buffer.Reset()
 			buffer.Write(val)
+
 			if bytes.Contains(val, bID) {
-				buffer.Reset()
-				key.Reset()
 				continue
 			}
 
 			buffer.WriteString(",")
 			buffer.Write(bID)
 			l.db.Put(key.Bytes(), buffer.Bytes(), nil)
-			buffer.Reset()
-			key.Reset()
 			continue
 		}
 		l.db.Put(key.Bytes(), bID, nil)
-		key.Reset()
 	}
 	l.db.Put([]byte("LastCommentID"), bID, nil)
 	return nil
@@ -80,4 +79,8 @@ func (l LevelDB) Increment(id string, hashSet map[int64]struct{}) error {
 
 func (l LevelDB) Save() error {
 	return nil
+}
+
+func (l LevelDB) Stop() {
+
 }

@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/tsubasa597/ASoulCnkiBackend/comment"
 	"github.com/tsubasa597/ASoulCnkiBackend/conf"
@@ -30,5 +31,9 @@ func main() {
 	sign := make(chan os.Signal, 1)
 	signal.Notify(sign, syscall.SIGINT, syscall.SIGTERM)
 	<-sign
-	s.Shutdown(context.Background())
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	defer cancel()
+
+	s.Shutdown(ctx)
 }

@@ -7,6 +7,7 @@ import (
 
 	"github.com/tsubasa597/ASoulCnkiBackend/conf"
 	"github.com/tsubasa597/ASoulCnkiBackend/db/entry"
+	"github.com/tsubasa597/ASoulCnkiBackend/db/vo"
 
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/sqlite"
@@ -33,7 +34,9 @@ func New() (*DB, error) {
 		db.db, err = gorm.Open(
 			mysql.Open(fmt.Sprintf("%s:%s@tcp(%s)/%s?charset=utf8mb4&parseTime=True&loc=Local",
 				conf.User, conf.Password, conf.Host, conf.DBName)),
-			&gorm.Config{})
+			&gorm.Config{
+				PrepareStmt: true,
+			})
 	} else {
 		return nil, fmt.Errorf(ErrHasNoDataBase)
 	}
@@ -136,6 +139,57 @@ func (db DB) Delete(model entry.Modeler) error {
 	defer db.mutex.Unlock()
 
 	return db.db.Delete(model).Error
+}
+
+func (db DB) Rank(page, size int, time, order string, uids ...string) (replys []vo.Reply, err error) {
+	tx := db.getReply(page, size)
+
+	for _, uid := range uids {
+		tx.Where("user.uid = ?", uid)
+	}
+
+	if time >= "0" {
+		tx.Where("comment.time > ?", time)
+	}
+
+	if order != "" {
+		tx.Order("comment." + order)
+	}
+
+	tx.Find(&replys)
+	return replys, tx.Error
+}
+
+func (db DB) Check(rpid string) (vo.Reply, error) {
+	reply := vo.Reply{}
+
+	tx := db.getReply(2, -1)
+	tx.Where("comment.rpid = ?", rpid).First(&reply)
+
+	return reply, tx.Error
+}
+
+type CommentCache struct {
+	Rpid    int64
+	Content string
+}
+
+func (db DB) GetContent(rpid string) (commentCache []CommentCache) {
+	db.db.Model(&entry.Commentator{}).Select("commentator.rpid, comment.content").
+		Joins("left join comment on commentator.comment_id = comment.id").
+		Where("commentator.rpid > ?", rpid).
+		Find(&commentCache)
+
+	return
+}
+
+func (db DB) getReply(page, size int) gorm.DB {
+	return *db.db.Model(&entry.Commentator{}).
+		Select("dynamic.type, dynamic.rid as rid, user.uid as uuid, commentator.rpid, commentator.uid as uid, commentator.time, commentator.uname as name, comment.content, commentator.like, comment.rpid as origin_rpid, comment.num, comment.total_like").
+		Joins("left join comment on comment.id = commentator.comment_id").
+		Joins("left join dynamic on dynamic.id = commentator.dynamic_id").
+		Joins("left join user on user.id = dynamic.user_id").
+		Limit(size).Offset(size * (page - 1))
 }
 
 type Param struct {

@@ -216,7 +216,7 @@ func (update Update) comment(dynamic entry.Dynamic) {
 		Field: []string{"is_update"},
 	})
 
-	if err := update.cache.Content.Save(); err != nil {
+	if err := update.cache.Check.Save(); err != nil {
 		update.log.WithField("Func", "cache.Save").Error(err)
 	}
 }
