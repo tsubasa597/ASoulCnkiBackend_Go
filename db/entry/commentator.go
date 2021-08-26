@@ -46,6 +46,9 @@ func (c *Commentator) BeforeCreate(tx *gorm.DB) error {
 		comm.ID = 0
 		comm.CreateAt = time.Time{}
 		comm.UpdateAt = time.Time{}
+		comm.Like = 0
+		comm.TotalLike = 0
+		comm.Num = 0
 		commentPool.Put(comm)
 	}()
 

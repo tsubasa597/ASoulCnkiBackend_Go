@@ -5,6 +5,7 @@ type Cacher interface {
 	Set(string, string) error
 	Save() error
 	Increment(string, map[int64]struct{}) error
+	Stop()
 }
 
 type Cache struct {
@@ -13,15 +14,16 @@ type Cache struct {
 }
 
 func New() (*Cache, error) {
-	check, err := NewLevelDB("/check")
+	check, err := NewBuntDB("/check")
 	if err != nil {
 		return nil, err
 	}
 
-	content, err := NewLevelDB("/content")
+	content, err := NewBuntDB("/content")
 	if err != nil {
 		return nil, err
 	}
+
 	return &Cache{
 		Check:   *check,
 		Content: *content,

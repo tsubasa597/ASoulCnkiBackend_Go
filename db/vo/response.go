@@ -6,22 +6,25 @@ const (
 )
 
 type Response struct {
-	Code      int         `json:"code"`
-	Message   string      `json:"message"`
-	Data      interface{} `json:"data"`
-	StartTime int32       `json:"start_time"`
-	EndTme    int32       `json:"end_time"`
-	AllCount  int         `json:"all_count"`
+	Code    int         `json:"code"`
+	Message string      `json:"message"`
+	Data    interface{} `json:"data"`
 }
 
 type Replies struct {
-	Replies []Reply `json:"replies"`
+	Replies   []Reply `json:"replies"`
+	StartTime int32   `json:"start_time"`
+	EndTme    int32   `json:"end_time"`
+	AllCount  int     `json:"all_count"`
 }
 
 type Related struct {
-	Rate    float64 `json:"rate"`
-	URL     string  `json:"reply_url"`
-	Related []Reply `json:"related"`
+	Rate      float64 `json:"rate"`
+	URL       string  `json:"reply_url"`
+	Related   []Reply `json:"related"`
+	StartTime int32   `json:"start_time"`
+	EndTme    int32   `json:"end_time"`
+	AllCount  int     `json:"all_count"`
 }
 
 func Sucess(data interface{}) *Response {

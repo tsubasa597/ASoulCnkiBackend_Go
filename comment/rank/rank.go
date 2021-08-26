@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/tsubasa597/ASoulCnkiBackend/db"
-	"github.com/tsubasa597/ASoulCnkiBackend/db/entry"
 	"github.com/tsubasa597/ASoulCnkiBackend/db/vo"
 )
 
@@ -39,14 +38,6 @@ func (r Rank) Do(page, size int, t, sort string, uids ...string) *vo.Response {
 	case "3":
 		sort = "num desc"
 	}
-
-	r.db.Find(&entry.Comment{}, db.Param{
-		Page:  page,
-		Size:  size,
-		Order: sort,
-		Query: "time > ? and user_id in (?)",
-		Args:  []interface{}{t, uids},
-	})
 
 	replys, err := r.db.Rank(page, size, t, sort, uids...)
 	if err != nil {

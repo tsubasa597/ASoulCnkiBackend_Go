@@ -98,3 +98,7 @@ func (b BuntDB) Increment(id string, hashSet map[int64]struct{}) error {
 
 	return nil
 }
+
+func (b BuntDB) Stop() {
+	b.db.Close()
+}

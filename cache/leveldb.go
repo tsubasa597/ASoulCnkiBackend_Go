@@ -80,3 +80,7 @@ func (l LevelDB) Increment(id string, hashSet map[int64]struct{}) error {
 func (l LevelDB) Save() error {
 	return nil
 }
+
+func (l LevelDB) Stop() {
+
+}

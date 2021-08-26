@@ -72,16 +72,6 @@ func (check Check) Compare(s string) vo.Related {
 		}
 		related.Rate = comresult.Similarity
 		related.Related = append(related.Related, reply)
-		// comm, err := check.db.Find(&entry.Comment{}, db.Param{
-		// 	Page:  -1,
-		// 	Order: "rpid asc",
-		// 	Query: "rpid = ?",
-		// 	Args:  []interface{}{comresult.ID},
-		// })
-		// if err != nil {
-		// 	continue
-		// }
-
 	}
 	return related
 }

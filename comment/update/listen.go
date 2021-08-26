@@ -33,6 +33,8 @@ func (lis ListenUpdate) Started() bool {
 
 func (lis ListenUpdate) Stop() {
 	lis.Listen.Stop()
+	lis.cache.Check.Stop()
+	lis.cache.Content.Stop()
 }
 
 func (lis ListenUpdate) Add(user entry.User) {
@@ -47,10 +49,10 @@ func (lis ListenUpdate) Add(user entry.User) {
 	}
 
 	lis.log.WithField("Func", "ListenUpdate.Add").Info(fmt.Sprintf("Listen %d", user.UID))
-	go lis.listen(user.ID, ch, ctx)
+	go lis.listen(ctx, user.ID, ch)
 }
 
-func (lis ListenUpdate) listen(userID uint64, ch chan []info.Infoer, ctx context.Context) {
+func (lis ListenUpdate) listen(ctx context.Context, userID uint64, ch chan []info.Infoer) {
 	for {
 		select {
 		case <-ctx.Done():
@@ -99,7 +101,7 @@ func NewListen(db db.DB, cache cache.Cache, log *logrus.Entry) *ListenUpdate {
 	}
 
 	if conf.Enable {
-		go func(ticker <-chan time.Time, ctx context.Context) {
+		go func(ctx context.Context, ticker <-chan time.Time) {
 			for {
 				select {
 				case <-ctx.Done():
@@ -109,7 +111,7 @@ func NewListen(db db.DB, cache cache.Cache, log *logrus.Entry) *ListenUpdate {
 					go listen.Comment()
 				}
 			}
-		}(time.NewTicker(time.Duration(conf.CommentDuration)*time.Minute).C, ctx)
+		}(ctx, time.NewTicker(time.Duration(conf.CommentDuration)*time.Minute).C)
 	}
 
 	return listen

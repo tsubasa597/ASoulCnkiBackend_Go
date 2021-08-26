@@ -58,7 +58,6 @@ func New() (*DB, error) {
 
 	db.migrateTable()
 
-	// fmt.Println(db.GetReply("0", "like desc", "351609538"))
 	return db, nil
 }
 
@@ -142,9 +141,7 @@ func (db DB) Delete(model entry.Modeler) error {
 	return db.db.Delete(model).Error
 }
 
-func (db DB) Rank(page, size int, time, order string, uids ...string) ([]vo.Reply, error) {
-	replys := make([]vo.Reply, 0)
-
+func (db DB) Rank(page, size int, time, order string, uids ...string) (replys []vo.Reply, err error) {
 	tx := db.getReply(page, size)
 
 	for _, uid := range uids {
@@ -172,12 +169,26 @@ func (db DB) Check(rpid string) (vo.Reply, error) {
 	return reply, tx.Error
 }
 
+type CommentCache struct {
+	Rpid    int64
+	Content string
+}
+
+func (db DB) GetContent(rpid string) (commentCache []CommentCache) {
+	db.db.Model(&entry.Commentator{}).Select("commentator.rpid, comment.content").
+		Joins("left join comment on commentator.comment_id = comment.id").
+		Where("commentator.rpid > ?", rpid).
+		Find(&commentCache)
+
+	return
+}
+
 func (db DB) getReply(page, size int) gorm.DB {
 	return *db.db.Model(&entry.Commentator{}).
 		Select("dynamic.type, dynamic.rid as rid, user.uid as uuid, commentator.rpid, commentator.uid as uid, commentator.time, commentator.uname as name, comment.content, commentator.like, comment.rpid as origin_rpid, comment.num, comment.total_like").
-		Joins("left join comment on comment.rpid = commentator.rpid").
+		Joins("left join comment on comment.id = commentator.comment_id").
 		Joins("left join dynamic on dynamic.id = commentator.dynamic_id").
-		Joins("left join user on user.id = dynamic.user_id").Order("comment.like desc").
+		Joins("left join user on user.id = dynamic.user_id").
 		Limit(size).Offset(size * (page - 1))
 }
 

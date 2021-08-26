@@ -9,7 +9,7 @@ require (
 	github.com/lestrrat-go/strftime v1.0.5 // indirect
 	github.com/rifflock/lfshook v0.0.0-20180920164130-b9218ef580f5
 	github.com/sirupsen/logrus v1.8.1
-	github.com/syndtr/goleveldb v1.0.0 // indirect
+	github.com/syndtr/goleveldb v1.0.0
 	github.com/tidwall/buntdb v1.2.4
 	github.com/tsubasa597/BILIBILI-HELPER v0.0.0-20210810093400-299f54abb68b
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
