@@ -45,6 +45,7 @@ func NewBuntDB(path string) (*BuntDB, error) {
 		fileName: path,
 	}
 
+	os.Mkdir(conf.CacheFilePath, os.ModePerm)
 	file, err := os.OpenFile(conf.CacheFilePath+b.fileName, os.O_RDWR|os.O_CREATE, 0755)
 	if err != nil {
 		return nil, err

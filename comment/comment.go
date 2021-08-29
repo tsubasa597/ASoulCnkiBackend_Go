@@ -2,6 +2,7 @@ package comment
 
 import (
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -26,7 +27,7 @@ func New(db_ db.DB, cache cache.Cache, log *logrus.Entry) *Comment {
 		Check:        check.New(db_, cache),
 	}
 
-	if c.ListenUpdate.Enable {
+	if atomic.LoadInt32(c.State) == update.StateRuning {
 		users, err := db_.Find(&entry.User{}, db.Param{
 			Order: "id asc",
 			Page:  -1,

@@ -6,6 +6,7 @@ import (
 	"sort"
 	"sync"
 	"sync/atomic"
+	"time"
 	"unicode/utf8"
 
 	"github.com/tsubasa597/ASoulCnkiBackend/cache"
@@ -19,21 +20,26 @@ import (
 	"github.com/tsubasa597/BILIBILI-HELPER/api"
 )
 
+const (
+	StateStop int32 = iota + 1
+	StateRuning
+	StatePause
+)
+
 type Update struct {
-	Wait           *int32
-	Ctx            context.Context
-	db             db.DB
-	cache          cache.Cache
-	currentLimit   *semaphore.Weighted
-	weight         int64
-	wg             *sync.WaitGroup
-	log            *logrus.Entry
-	commentStarted *int32
-	dynamicStarted *int32
+	Wait         *int32
+	State        *int32
+	Ctx          context.Context
+	db           db.DB
+	cache        cache.Cache
+	currentLimit *semaphore.Weighted
+	weight       int64
+	wg           *sync.WaitGroup
+	log          *logrus.Entry
 }
 
 func (update *Update) All() {
-	if atomic.LoadInt32(update.commentStarted) == 1 || atomic.LoadInt32(update.dynamicStarted) == 1 {
+	if atomic.LoadInt32(update.State) != StateStop {
 		return
 	}
 
@@ -43,15 +49,15 @@ func (update *Update) All() {
 }
 
 func (update *Update) Dynamic() {
-	if atomic.LoadInt32(update.dynamicStarted) == 1 {
+	if atomic.LoadInt32(update.State) != StateStop {
 		return
 	}
 
-	if !atomic.CompareAndSwapInt32(update.dynamicStarted, 0, 1) {
+	if !atomic.CompareAndSwapInt32(update.State, StateStop, StateRuning) {
 		update.log.WithField("Func", "CompareAndSwapInt32").Error("多协程启动！")
 		return
 	}
-	defer atomic.CompareAndSwapInt32(update.dynamicStarted, 1, 0)
+	defer atomic.CompareAndSwapInt32(update.State, StateRuning, StateStop)
 
 	users, err := update.db.Get(&entry.User{})
 	if err != nil {
@@ -80,11 +86,22 @@ func (update Update) dynamic(user entry.User) {
 
 DynamicPage:
 	for {
+		if atomic.LoadInt32(update.State) != StateRuning {
+			update.log.WithField("Func", "LoadInt32").Infof("State changed: %d", atomic.LoadInt32(update.State))
+			return
+		}
+
 		update.currentLimit.Acquire(update.Ctx, update.weight)
 		resp, err := api.GetDynamicSrvSpaceHistory(user.UID, offect)
 		if err != nil || resp.Data.HasMore != 1 {
 			update.log.WithField("Func", "Update api.GetDynamicSrvSpaceHistory").Errorln(err, " ", resp.Message)
 			update.currentLimit.Release(update.weight)
+			break DynamicPage
+		}
+
+		if resp.Code != 0 {
+			update.log.WithField("Func", "UpdateComment Code").Errorln(resp.Message)
+			update.Pause()
 			break DynamicPage
 		}
 
@@ -120,15 +137,15 @@ DynamicPage:
 }
 
 func (update *Update) Comment() {
-	if atomic.LoadInt32(update.commentStarted) == 1 {
+	if atomic.LoadInt32(update.State) != StateStop {
 		return
 	}
 
-	if !atomic.CompareAndSwapInt32(update.commentStarted, 0, 1) {
+	if !atomic.CompareAndSwapInt32(update.State, StateStop, StateRuning) {
 		update.log.WithField("Func", "CompareAndSwapInt32").Error("多协程启动！")
 		return
 	}
-	defer atomic.CompareAndSwapInt32(update.commentStarted, 1, 0)
+	defer atomic.CompareAndSwapInt32(update.State, StateRuning, StateStop)
 
 	dynamics, err := update.db.Find(&entry.Dynamic{}, db.Param{
 		Order: "time asc",
@@ -152,14 +169,20 @@ func (update *Update) Comment() {
 
 func (update Update) comment(dynamic entry.Dynamic) {
 	defer update.wg.Done()
+	defer atomic.AddInt32(update.Wait, -1)
+
 	if dynamic.Updated {
 		return
 	}
 
-	defer atomic.AddInt32(update.Wait, -1)
-
 	for i := 1; true; i++ {
 		update.currentLimit.Acquire(update.Ctx, update.weight)
+
+		if atomic.LoadInt32(update.State) != StateRuning {
+			update.log.WithField("Func", "LoadInt32").Infof("State changed: %d", atomic.LoadInt32(update.State))
+			return
+		}
+
 		comments, err := api.GetComments(dynamic.Type, 0, dynamic.RID, conf.DefaultPS, i)
 		if err != nil {
 			update.log.WithField("Func", "UpdateComment api.GetComments").Errorln(err)
@@ -169,6 +192,7 @@ func (update Update) comment(dynamic entry.Dynamic) {
 
 		if comments.Code != 0 {
 			update.log.WithField("Func", "UpdateComment Code").Errorln(comments.Message)
+			update.Pause()
 			update.currentLimit.Release(update.weight)
 			return
 		}
@@ -205,7 +229,6 @@ func (update Update) comment(dynamic entry.Dynamic) {
 
 			comms = append(comms, comm)
 		}
-
 		if err := update.db.Add(comms); err != nil {
 			update.log.WithField("Func", "db.Add").Error(err)
 		}
@@ -218,5 +241,25 @@ func (update Update) comment(dynamic entry.Dynamic) {
 
 	if err := update.cache.Check.Save(); err != nil {
 		update.log.WithField("Func", "cache.Save").Error(err)
+	}
+}
+
+func (update Update) Pause() {
+	update.log.WithField("Func", "update.Pause").Info("接口限流，暂停爬取")
+
+	if atomic.CompareAndSwapInt32(update.State, StateRuning, StatePause) {
+		go func(ctx context.Context, state *int32, ticker *time.Ticker) {
+			defer ticker.Stop()
+
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case <-ticker.C:
+					atomic.CompareAndSwapInt32(state, StatePause, StateRuning)
+					return
+				}
+			}
+		}(update.Ctx, update.State, time.NewTicker(time.Hour))
 	}
 }

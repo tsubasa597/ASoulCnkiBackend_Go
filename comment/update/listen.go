@@ -26,12 +26,11 @@ type ListenUpdate struct {
 }
 
 func (lis ListenUpdate) Started() bool {
-	return lis.Enable ||
-		(atomic.LoadInt32(lis.Update.commentStarted) == 1 ||
-			(atomic.LoadInt32(lis.Update.dynamicStarted) == 1))
+	return lis.Enable || atomic.LoadInt32(lis.State) != StateStop
 }
 
 func (lis ListenUpdate) Stop() {
+	atomic.SwapInt32(lis.State, StateStop)
 	lis.Listen.Stop()
 	lis.cache.Check.Stop()
 	lis.cache.Content.Stop()
@@ -77,42 +76,57 @@ func (lis ListenUpdate) listen(ctx context.Context, userID uint64, ch chan []inf
 
 func NewListen(db db.DB, cache cache.Cache, log *logrus.Entry) *ListenUpdate {
 	var (
-		weight                     int64 = 1
-		dystarted, costarted, wait int32 = 0, 0, 0
-		li, ctx                          = listen.New(listen.NewDynamic(), &api.API{}, log)
+		weight      int64 = 1
+		wait, state int32 = 0, 0
+		li, ctx           = listen.New(listen.NewDynamic(), &api.API{}, log)
 	)
 
 	listen := &ListenUpdate{
 		Update: Update{
-			currentLimit:   semaphore.NewWeighted(weight * conf.GoroutineNum),
-			weight:         weight,
-			Ctx:            ctx,
-			log:            log,
-			cache:          cache,
-			db:             db,
-			dynamicStarted: &dystarted,
-			commentStarted: &costarted,
-			Wait:           &wait,
-			wg:             &sync.WaitGroup{},
+			State:        &state,
+			currentLimit: semaphore.NewWeighted(weight * conf.GoroutineNum),
+			weight:       weight,
+			Ctx:          ctx,
+			log:          log,
+			cache:        cache,
+			db:           db,
+			Wait:         &wait,
+			wg:           &sync.WaitGroup{},
 		},
+		Enable: conf.Enable,
 		Listen: li,
 		log:    log,
-		Enable: conf.Enable,
 	}
 
-	if conf.Enable {
-		go func(ctx context.Context, ticker <-chan time.Time) {
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				case <-ticker:
-					listen.log.WithField("Func", "listen.Comment").Info("Comment Begin")
-					go listen.Comment()
-				}
-			}
-		}(ctx, time.NewTicker(time.Duration(conf.CommentDuration)*time.Minute).C)
+	if listen.Enable {
+		atomic.SwapInt32(listen.State, StateRuning)
+		listen.getComment(ctx, time.NewTicker(time.Minute*time.Duration(conf.CommentDuration)*2))
+	} else {
+		atomic.SwapInt32(listen.State, StateStop)
 	}
 
 	return listen
+}
+
+func (lis ListenUpdate) getComment(ctx context.Context, ticker *time.Ticker) {
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			switch atomic.LoadInt32(lis.State) {
+			case StateRuning:
+				lis.log.WithField("Func", "listen.Comment").Info("Comment Begin")
+				go lis.Comment()
+			case StatePause:
+				lis.log.WithField("Func", "listen.Comment").Info("Comment Paused")
+				continue
+			case StateStop:
+				lis.log.WithField("Func", "listen.Comment").Info("Comment Stoped")
+				return
+			}
+		}
+	}
 }
