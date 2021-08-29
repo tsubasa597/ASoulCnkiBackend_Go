@@ -9,7 +9,7 @@ import (
 	"github.com/tsubasa597/ASoulCnkiBackend/db/vo"
 )
 
-func Satus(ctx *gin.Context) {
+func State(ctx *gin.Context) {
 	instance := comment.GetInstance()
 
 	ctx.JSON(http.StatusOK, vo.Sucess(vo.Status{

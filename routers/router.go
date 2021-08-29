@@ -16,7 +16,7 @@ func Init() *gin.Engine {
 	{
 		apiV1.GET("/update", v1.Update)
 		apiV1.POST("/check", v1.Check)
-		apiV1.GET("/status", v1.Satus)
+		apiV1.GET("/state", v1.State)
 		apiV1.GET("/rank", v1.Rank)
 	}
 
