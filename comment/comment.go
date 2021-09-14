@@ -2,7 +2,6 @@ package comment
 
 import (
 	"fmt"
-	"sync/atomic"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -20,15 +19,15 @@ type Comment struct {
 	rank.Rank
 }
 
-func New(db_ db.DB, cache cache.Cache, log *logrus.Entry) *Comment {
+func New(dD db.DB, cache cache.Cache, log *logrus.Entry) *Comment {
 	c := &Comment{
-		Rank:         *rank.NewRank(db_),
-		ListenUpdate: update.NewListen(db_, cache, log),
-		Check:        check.New(db_, cache),
+		Rank:         *rank.NewRank(dD),
+		ListenUpdate: update.NewListen(dD, cache, log),
+		Check:        check.New(dD, cache),
 	}
 
-	if atomic.LoadInt32(c.State) == update.StateRuning {
-		users, err := db_.Find(&entry.User{}, db.Param{
+	if c.ListenUpdate.Enable {
+		users, err := dD.Find(&entry.User{}, db.Param{
 			Order: "id asc",
 			Page:  -1,
 		})
@@ -45,7 +44,7 @@ func New(db_ db.DB, cache cache.Cache, log *logrus.Entry) *Comment {
 	if err != nil {
 		val = "0"
 	}
-	comms := db_.GetContent(val)
+	comms := dD.GetContent(val)
 
 	for _, comm := range comms {
 		if err := cache.Content.Set(fmt.Sprint(comm.Rpid), comm.Content); err != nil {
@@ -62,7 +61,7 @@ func New(db_ db.DB, cache cache.Cache, log *logrus.Entry) *Comment {
 	if err != nil {
 		val = "0"
 	}
-	comms = db_.GetContent(val)
+	comms = dD.GetContent(val)
 
 	for _, comm := range comms {
 		if err := cache.Check.Increment(fmt.Sprint(comm.Rpid), check.HashSet(comm.Content)); err != nil {

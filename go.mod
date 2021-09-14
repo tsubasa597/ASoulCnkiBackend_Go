@@ -11,8 +11,7 @@ require (
 	github.com/sirupsen/logrus v1.8.1
 	github.com/syndtr/goleveldb v1.0.0
 	github.com/tidwall/buntdb v1.2.4
-	github.com/tsubasa597/BILIBILI-HELPER v0.0.0-20210810093400-299f54abb68b
-	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
+	github.com/tsubasa597/BILIBILI-HELPER v0.0.0-20210911101530-44f5f1a93758
 	gorm.io/driver/mysql v1.1.1
 	gorm.io/driver/sqlite v1.1.4
 	gorm.io/gorm v1.21.11

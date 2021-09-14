@@ -3,8 +3,6 @@ package update
 import (
 	"context"
 	"fmt"
-	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -12,28 +10,25 @@ import (
 	"github.com/tsubasa597/ASoulCnkiBackend/conf"
 	"github.com/tsubasa597/ASoulCnkiBackend/db"
 	"github.com/tsubasa597/ASoulCnkiBackend/db/entry"
-	"github.com/tsubasa597/BILIBILI-HELPER/api"
-	"github.com/tsubasa597/BILIBILI-HELPER/info"
 	"github.com/tsubasa597/BILIBILI-HELPER/listen"
-	"golang.org/x/sync/semaphore"
 )
 
 type ListenUpdate struct {
-	*listen.Listen
 	Update
 	Enable bool
+	db     db.DB
+	cache  cache.Cache
 	log    *logrus.Entry
 }
 
 func (lis ListenUpdate) Started() bool {
-	return lis.Enable || atomic.LoadInt32(lis.State) != StateStop
+	return lis.Enable
 }
 
 func (lis ListenUpdate) Stop() {
-	atomic.SwapInt32(lis.State, StateStop)
-	lis.Listen.Stop()
-	lis.cache.Check.Stop()
-	lis.cache.Content.Stop()
+	lis.dynamic.Stop()
+	lis.comment.Stop()
+	lis.Enable = false
 }
 
 func (lis ListenUpdate) Add(user entry.User) {
@@ -41,92 +36,32 @@ func (lis ListenUpdate) Add(user entry.User) {
 		return
 	}
 
-	ctx, ch, err := lis.Listen.Add(user.UID, user.LastDynamicTime, time.Duration(conf.DynamicDuration)*time.Minute)
+	ctx, ch, err := lis.Update.dynamic.Add(user.UID, user.LastDynamicTime, time.Duration(conf.DynamicDuration)*time.Minute)
 	if err != nil {
 		lis.log.WithField("Func", "Listen.Add").Error(err)
 		return
 	}
 
 	lis.log.WithField("Func", "ListenUpdate.Add").Info(fmt.Sprintf("Listen %d", user.UID))
-	go lis.listen(ctx, user.ID, ch)
-}
-
-func (lis ListenUpdate) listen(ctx context.Context, userID uint64, ch chan []info.Infoer) {
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case infos := <-ch:
-			for i := len(infos) - 1; i >= 0; i-- {
-				dy := infos[i].GetInstance().(*info.Dynamic)
-				if err := lis.db.Add(&entry.Dynamic{
-					RID:     dy.RID,
-					Type:    dy.CommentType,
-					Time:    dy.Time,
-					Updated: false,
-					Name:    dy.Name,
-					UserID:  userID,
-				}); err != nil {
-					lis.log.WithField("Func", "db.Add").Error(err)
-				}
-			}
-		}
-	}
+	go lis.Update.SaveDyanmic(ctx, user.ID, ch)
 }
 
 func NewListen(db db.DB, cache cache.Cache, log *logrus.Entry) *ListenUpdate {
-	var (
-		weight      int64 = 1
-		wait, state int32 = 0, 0
-		li, ctx           = listen.New(listen.NewDynamic(), &api.API{}, log)
-	)
+	ctx := context.Background()
+	comm := listen.New(ctx, listen.NewComment(ctx, conf.GoroutineNum, log), nil, log)
+	dyna := listen.New(ctx, listen.NewDynamic(ctx, log), nil, log)
 
 	listen := &ListenUpdate{
 		Update: Update{
-			State:        &state,
-			currentLimit: semaphore.NewWeighted(weight * conf.GoroutineNum),
-			weight:       weight,
-			Ctx:          ctx,
-			log:          log,
-			cache:        cache,
-			db:           db,
-			Wait:         &wait,
-			wg:           &sync.WaitGroup{},
+			comment: comm,
+			dynamic: dyna,
+			cache:   cache,
+			db:      db,
+			log:     log,
 		},
 		Enable: conf.Enable,
-		Listen: li,
 		log:    log,
 	}
 
-	if listen.Enable {
-		atomic.SwapInt32(listen.State, StateRuning)
-		listen.getComment(ctx, time.NewTicker(time.Minute*time.Duration(conf.CommentDuration)*2))
-	} else {
-		atomic.SwapInt32(listen.State, StateStop)
-	}
-
 	return listen
-}
-
-func (lis ListenUpdate) getComment(ctx context.Context, ticker *time.Ticker) {
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			switch atomic.LoadInt32(lis.State) {
-			case StateRuning:
-				lis.log.WithField("Func", "listen.Comment").Info("Comment Begin")
-				go lis.Comment()
-			case StatePause:
-				lis.log.WithField("Func", "listen.Comment").Info("Comment Paused")
-				continue
-			case StateStop:
-				lis.log.WithField("Func", "listen.Comment").Info("Comment Stoped")
-				return
-			}
-		}
-	}
 }
