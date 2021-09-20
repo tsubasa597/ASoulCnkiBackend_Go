@@ -4,23 +4,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/tsubasa597/ASoulCnkiBackend/db"
-	"github.com/tsubasa597/ASoulCnkiBackend/db/vo"
+	"github.com/tsubasa597/ASoulCnkiBackend/models/vo"
+	"github.com/tsubasa597/ASoulCnkiBackend/pkg/model"
 )
 
-type Rank struct {
-	db db.DB
-}
-
-func NewRank(db_ db.DB) *Rank {
-	r := &Rank{
-		db: db_,
-	}
-
-	return r
-}
-
-func (r Rank) Do(page, size int, t, sort string, uids ...string) *vo.Response {
+func Do(page, size int, t, sort string, uids ...string) *vo.Response {
 	switch t {
 	case "1":
 		t = fmt.Sprint(time.Now().AddDate(0, 0, -7).Unix())
@@ -39,7 +27,7 @@ func (r Rank) Do(page, size int, t, sort string, uids ...string) *vo.Response {
 		sort = "num desc"
 	}
 
-	replys, err := r.db.Rank(page, size, t, sort, uids...)
+	replys, err := model.Rank(page, size, t, sort, uids...)
 	if err != nil {
 		return nil
 	}

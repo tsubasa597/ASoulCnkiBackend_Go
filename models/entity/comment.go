@@ -1,4 +1,4 @@
-package entry
+package entity
 
 import (
 	"gorm.io/gorm/clause"
@@ -16,7 +16,7 @@ type Comment struct {
 }
 
 var (
-	_, _ Modeler = (*Comment)(nil), (*Comments)(nil)
+	_, _ Entity = (*Comment)(nil), (*Comments)(nil)
 )
 
 func (Comment) GetModels() interface{} {

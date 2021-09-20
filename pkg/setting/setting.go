@@ -1,7 +1,7 @@
-package conf
+package setting
 
 import (
-	"log"
+	"fmt"
 
 	"github.com/go-ini/ini"
 )
@@ -17,7 +17,7 @@ var (
 func init() {
 	cfg, err := ini.Load("./conf/conf.ini")
 	if err != nil {
-		log.Fatalf("Fail to parse 'conf/app.ini': %v", err)
+		panic(fmt.Sprintf("Fail to parse 'conf/app.ini': %v", err))
 	}
 	RunMode = cfg.Section("web").Key("RUN_MODE").MustString("debug")
 	Port = cfg.Section("web").Key("PORT").MustInt(8000)

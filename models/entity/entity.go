@@ -1,4 +1,4 @@
-package entry
+package entity
 
 import (
 	"time"
@@ -7,7 +7,7 @@ import (
 	"gorm.io/gorm/schema"
 )
 
-type Modeler interface {
+type Entity interface {
 	schema.Tabler
 	GetModels() interface{}
 	GetClauses() clause.OnConflict

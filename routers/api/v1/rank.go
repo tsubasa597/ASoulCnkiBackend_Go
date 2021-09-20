@@ -5,8 +5,8 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/tsubasa597/ASoulCnkiBackend/comment"
-	"github.com/tsubasa597/ASoulCnkiBackend/conf"
+	"github.com/tsubasa597/ASoulCnkiBackend/pkg/setting"
+	"github.com/tsubasa597/ASoulCnkiBackend/service/rank"
 )
 
 func Rank(ctx *gin.Context) {
@@ -19,8 +19,8 @@ func Rank(ctx *gin.Context) {
 	}
 
 	if size, err = strconv.Atoi(ctx.Query("size")); err != nil && (size < 1 || size > 30) {
-		size = conf.Size
+		size = setting.Size
 	}
 
-	ctx.JSON(http.StatusOK, comment.GetInstance().Rank.Do(page, size, ctx.Query("time"), ctx.Query("sort"), ctx.QueryArray("ids")...))
+	ctx.JSON(http.StatusOK, rank.Do(page, size, ctx.Query("time"), ctx.Query("sort"), ctx.QueryArray("ids")...))
 }

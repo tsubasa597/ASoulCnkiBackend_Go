@@ -1,4 +1,4 @@
-package entry
+package entity
 
 import (
 	"sync"
@@ -23,7 +23,7 @@ type Commentator struct {
 }
 
 var (
-	_           Modeler                         = (*Commentator)(nil)
+	_           Entity                          = (*Commentator)(nil)
 	_           callbacks.BeforeCreateInterface = (*Commentator)(nil)
 	commentPool sync.Pool                       = sync.Pool{
 		New: func() interface{} {
@@ -75,7 +75,7 @@ func (c *Commentator) BeforeCreate(tx *gorm.DB) error {
 		comm.Time = c.Time
 		comm.Like = c.Like
 	}
-	comm.Num += 1
+	comm.Num++
 	comm.TotalLike += comm.Like
 
 	tx.Model(comm).Select("Rpid", "TotalLike", "Time", "Num", "Like", "UserID").

@@ -9,23 +9,33 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/tsubasa597/ASoulCnkiBackend/comment"
-	"github.com/tsubasa597/ASoulCnkiBackend/conf"
+	"github.com/sirupsen/logrus"
+	"github.com/tsubasa597/ASoulCnkiBackend/pkg/cache"
+	"github.com/tsubasa597/ASoulCnkiBackend/pkg/logging"
+	"github.com/tsubasa597/ASoulCnkiBackend/pkg/model"
+	"github.com/tsubasa597/ASoulCnkiBackend/pkg/setting"
 	"github.com/tsubasa597/ASoulCnkiBackend/routers"
+	"github.com/tsubasa597/ASoulCnkiBackend/service/listen"
 )
 
 func main() {
-	conf.WriteLog()
+	logging.Write()
+
+	model.Setup()
+	cache.Setup()
+	listen := listen.New(logrus.NewEntry(logrus.StandardLogger()))
 
 	eng := routers.Init()
 	s := &http.Server{
-		Addr:    fmt.Sprintf(":%d", conf.Port),
+		Addr:    fmt.Sprintf(":%d", setting.Port),
 		Handler: eng,
 	}
 	go s.ListenAndServe()
 
 	s.RegisterOnShutdown(func() {
-		comment.GetInstance().Stop()
+		cache.GetCache().Stop()
+
+		listen.Stop()
 	})
 
 	sign := make(chan os.Signal, 1)

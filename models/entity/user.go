@@ -1,4 +1,4 @@
-package entry
+package entity
 
 type User struct {
 	Model
@@ -7,7 +7,7 @@ type User struct {
 	LastDynamicTime int32  `json:"dynamic_time" gorm:"column:dynamic_time"`
 }
 
-var _ Modeler = (*User)(nil)
+var _ Entity = (*User)(nil)
 
 func (User) GetModels() interface{} {
 	return &[]User{}

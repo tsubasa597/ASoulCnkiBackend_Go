@@ -1,4 +1,4 @@
-package entry
+package entity
 
 import (
 	"sort"
@@ -20,7 +20,7 @@ type Dynamic struct {
 }
 
 var (
-	_, _     Modeler                        = (*Dynamic)(nil), (*Dynamics)(nil)
+	_, _     Entity                         = (*Dynamic)(nil), (*Dynamics)(nil)
 	_        callbacks.AfterCreateInterface = (*Dynamic)(nil)
 	_        sort.Interface                 = (*Dynamics)(nil)
 	userPool sync.Pool                      = sync.Pool{

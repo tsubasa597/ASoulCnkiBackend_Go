@@ -7,7 +7,7 @@ import (
 	"sync"
 
 	"github.com/tidwall/buntdb"
-	"github.com/tsubasa597/ASoulCnkiBackend/conf"
+	"github.com/tsubasa597/ASoulCnkiBackend/pkg/setting"
 )
 
 type BuntDB struct {
@@ -45,8 +45,8 @@ func NewBuntDB(path string) (*BuntDB, error) {
 		fileName: path,
 	}
 
-	os.Mkdir(conf.CacheFilePath, os.ModePerm)
-	file, err := os.OpenFile(conf.CacheFilePath+b.fileName, os.O_RDWR|os.O_CREATE, 0755)
+	os.Mkdir(setting.CacheFilePath, os.ModePerm)
+	file, err := os.OpenFile(setting.CacheFilePath+b.fileName, os.O_RDWR|os.O_CREATE, 0755)
 	if err != nil {
 		return nil, err
 	}
@@ -67,11 +67,11 @@ func (b BuntDB) Save() error {
 	b.mutex.Lock()
 	defer b.mutex.Unlock()
 
-	if err := os.Remove(conf.CacheFilePath + b.fileName); err != nil {
+	if err := os.Remove(setting.CacheFilePath + b.fileName); err != nil {
 		return err
 	}
 
-	file, err := os.OpenFile(conf.CacheFilePath+b.fileName, os.O_RDWR|os.O_CREATE, 0755)
+	file, err := os.OpenFile(setting.CacheFilePath+b.fileName, os.O_RDWR|os.O_CREATE, 0755)
 	if err != nil {
 		return err
 	}
@@ -101,5 +101,8 @@ func (b BuntDB) Increment(id string, hashSet map[int64]struct{}) error {
 }
 
 func (b BuntDB) Stop() {
+	b.mutex.Lock()
+	defer b.mutex.Unlock()
+
 	b.db.Close()
 }

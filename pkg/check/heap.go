@@ -3,7 +3,7 @@ package check
 import (
 	"container/heap"
 
-	"github.com/tsubasa597/ASoulCnkiBackend/conf"
+	"github.com/tsubasa597/ASoulCnkiBackend/pkg/setting"
 )
 
 type CompareResult struct {
@@ -39,8 +39,8 @@ func (r *CompareResults) Pop() interface{} {
 }
 
 func (r *CompareResults) Push(data interface{}) {
-	if len(*r) == conf.HeapLength {
-		*r = (*r)[:conf.HeapLength-1]
+	if len(*r) == setting.HeapLength {
+		*r = (*r)[:setting.HeapLength-1]
 	}
 	*r = append(*r, data.(CompareResult))
 }

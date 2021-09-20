@@ -6,7 +6,7 @@ import (
 	"sync"
 
 	"github.com/syndtr/goleveldb/leveldb"
-	"github.com/tsubasa597/ASoulCnkiBackend/conf"
+	"github.com/tsubasa597/ASoulCnkiBackend/pkg/setting"
 )
 
 type LevelDB struct {
@@ -17,7 +17,7 @@ type LevelDB struct {
 var _ Cacher = (*LevelDB)(nil)
 
 func NewLevelDB(path string) (*LevelDB, error) {
-	db, err := leveldb.OpenFile(conf.CacheFilePath+path, nil)
+	db, err := leveldb.OpenFile(setting.CacheFilePath+path, nil)
 	if err != nil {
 		return nil, err
 	}
