@@ -32,12 +32,6 @@ func main() {
 	}
 	go s.ListenAndServe()
 
-	s.RegisterOnShutdown(func() {
-		cache.GetCache().Stop()
-
-		listen.Stop()
-	})
-
 	sign := make(chan os.Signal, 1)
 	signal.Notify(sign, syscall.SIGINT, syscall.SIGTERM)
 	<-sign
@@ -46,4 +40,7 @@ func main() {
 	defer cancel()
 
 	s.Shutdown(ctx)
+
+	cache.GetCache().Stop()
+	listen.Stop()
 }

@@ -2,13 +2,11 @@ package listen
 
 import (
 	"context"
-	"fmt"
 	"math/rand"
 	"time"
 
 	"github.com/tsubasa597/ASoulCnkiBackend/models/entity"
 	"github.com/tsubasa597/ASoulCnkiBackend/pkg/cache"
-	"github.com/tsubasa597/ASoulCnkiBackend/pkg/check"
 	"github.com/tsubasa597/ASoulCnkiBackend/pkg/model"
 	"github.com/tsubasa597/BILIBILI-HELPER/info"
 )
@@ -34,16 +32,6 @@ func (l Listen) SaveComment(ctx context.Context, userID, dynamicID uint64, ch <-
 					DynamicID: dynamicID,
 					UserID:    userID,
 				})
-
-				err := cache.GetCache().Check.Increment(fmt.Sprint(comm.Rpid), check.HashSet(comm.Content))
-				if err != nil {
-					l.log.WithField("Func", "check.Increment").Error(err)
-				}
-
-				err = cache.GetCache().Content.Set(fmt.Sprint(comm.Rpid), comm.Content)
-				if err != nil {
-					l.log.WithField("Func", "content.Set").Error(err)
-				}
 			}
 
 			if len(c) == 0 {
@@ -58,6 +46,11 @@ func (l Listen) SaveComment(ctx context.Context, userID, dynamicID uint64, ch <-
 			err = cache.GetCache().Check.Save()
 			if err != nil {
 				l.log.WithField("Func", "check.Save").Error(err)
+			}
+
+			err = cache.GetCache().Content.Save()
+			if err != nil {
+				l.log.WithField("Func", "content.Save").Error(err)
 			}
 		}
 	}
@@ -81,9 +74,9 @@ func (l Listen) SaveDyanmic(ctx context.Context, userID uint64, ch <-chan []info
 				})
 
 				ct, ch, err := l.comment.Add(dy.RID, int32(dy.CommentType),
-					time.Second*time.Duration(rand.Intn(4)+1))
+					time.Second*time.Duration(rand.Int63n(2)+1))
 				if err != nil {
-					l.log.WithField("Func", "db.Add").Error(err)
+					l.log.WithField("Func", "Listen.Add").Error(err)
 					continue
 				}
 

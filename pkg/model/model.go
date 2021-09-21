@@ -2,7 +2,6 @@ package model
 
 import (
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/tsubasa597/ASoulCnkiBackend/models/entity"
@@ -13,12 +12,12 @@ import (
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 	"gorm.io/plugin/dbresolver"
 )
 
 var (
-	db    *gorm.DB
-	mutex *sync.Mutex = &sync.Mutex{}
+	db *gorm.DB
 )
 
 func Setup() {
@@ -96,9 +95,6 @@ func migrateTable() {
 }
 
 func Get(model entity.Entity) (interface{}, error) {
-	mutex.Lock()
-	defer mutex.Unlock()
-
 	models := model.GetModels()
 	db.Find(models)
 
@@ -106,9 +102,6 @@ func Get(model entity.Entity) (interface{}, error) {
 }
 
 func Find(model entity.Entity, param Param) (interface{}, error) {
-	mutex.Lock()
-	defer mutex.Unlock()
-
 	models := model.GetModels()
 
 	if db.Scopes(filter(param)).Find(models).RowsAffected == 0 {
@@ -118,30 +111,18 @@ func Find(model entity.Entity, param Param) (interface{}, error) {
 }
 
 func Add(model entity.Entity) error {
-	mutex.Lock()
-	defer mutex.Unlock()
-
 	return db.Clauses(model.GetClauses()).Create(model).Error
 }
 
 func Update(model entity.Entity, param Param) error {
-	mutex.Lock()
-	defer mutex.Unlock()
-
 	return db.Model(model).Select(param.Field).Updates(model).Error
 }
 
 func Delete(model entity.Entity) error {
-	mutex.Lock()
-	defer mutex.Unlock()
-
 	return db.Delete(model).Error
 }
 
 func Rank(page, size int, time, order string, uids ...string) (replys []vo.Reply, err error) {
-	mutex.Lock()
-	defer mutex.Unlock()
-
 	tx := getReply(page, size)
 
 	for _, uid := range uids {
@@ -153,7 +134,10 @@ func Rank(page, size int, time, order string, uids ...string) (replys []vo.Reply
 	}
 
 	if order != "" {
-		tx.Order("comment." + order)
+		tx.Order(clause.OrderByColumn{
+			Column: clause.Column{Name: "comment." + order},
+			Desc:   true,
+		})
 	}
 
 	tx.Find(&replys)
@@ -161,9 +145,6 @@ func Rank(page, size int, time, order string, uids ...string) (replys []vo.Reply
 }
 
 func Check(rpid string) (vo.Reply, error) {
-	mutex.Lock()
-	defer mutex.Unlock()
-
 	reply := vo.Reply{}
 
 	tx := getReply(2, -1)
@@ -178,12 +159,10 @@ type CommentCache struct {
 }
 
 func GetContent(rpid string) (commentCache []CommentCache) {
-	mutex.Lock()
-	defer mutex.Unlock()
-
 	db.Model(&entity.Commentator{}).Select("commentator.rpid, comment.content").
 		Joins("left join comment comment on commentator.comment_id = comment.id").
 		Where("commentator.rpid > ?", rpid).
+		Order("commentator.rpid asc").
 		Find(&commentCache)
 
 	return

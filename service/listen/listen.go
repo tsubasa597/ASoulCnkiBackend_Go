@@ -39,7 +39,7 @@ func (lis Listen) Add(user entity.User) {
 		return
 	}
 
-	lis.log.WithField("Func", "ListenUpdate.Add").Info(fmt.Sprintf("Listen %d", user.UID))
+	lis.log.WithField("Func", "Listen.Add").Info(fmt.Sprintf("Listen %d", user.UID))
 	go lis.SaveDyanmic(ctx, user.ID, ch)
 }
 

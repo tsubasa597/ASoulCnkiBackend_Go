@@ -20,11 +20,11 @@ func Do(page, size int, t, sort string, uids ...string) *vo.Response {
 
 	switch sort {
 	case "1":
-		sort = "total_like desc"
+		sort = "total_like"
 	case "2":
-		sort = "like desc"
+		sort = "like"
 	case "3":
-		sort = "num desc"
+		sort = "num"
 	}
 
 	replys, err := model.Rank(page, size, t, sort, uids...)

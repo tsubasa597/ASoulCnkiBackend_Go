@@ -1,9 +1,12 @@
 package entity
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
+	"github.com/tsubasa597/ASoulCnkiBackend/pkg/cache"
+	"github.com/tsubasa597/ASoulCnkiBackend/pkg/check"
 	"gorm.io/gorm"
 	"gorm.io/gorm/callbacks"
 	"gorm.io/gorm/clause"
@@ -63,6 +66,9 @@ func (c *Commentator) BeforeCreate(tx *gorm.DB) error {
 		UserID:    c.UserID,
 	}).FirstOrCreate(comm)
 
+	cache.GetCache().Check.Increment(fmt.Sprint(comm.Rpid), check.HashSet(comm.Content))
+	cache.GetCache().Content.Set(fmt.Sprint(comm.Rpid), comm.Content)
+
 	c.CommentID = comm.ID
 
 	if comm.Rpid == c.Rpid {
@@ -78,8 +84,7 @@ func (c *Commentator) BeforeCreate(tx *gorm.DB) error {
 	comm.Num++
 	comm.TotalLike += comm.Like
 
-	tx.Model(comm).Select("Rpid", "TotalLike", "Time", "Num", "Like", "UserID").
-		Updates(comm)
+	tx.Model(comm).Select("Rpid", "TotalLike", "Time", "Num", "Like", "UserID").Updates(comm)
 	return nil
 }
 
