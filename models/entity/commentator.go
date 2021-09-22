@@ -49,16 +49,14 @@ func (c *Commentator) BeforeCreate(tx *gorm.DB) error {
 		comm.ID = 0
 		comm.CreateAt = time.Time{}
 		comm.UpdateAt = time.Time{}
-		comm.Like = 0
 		comm.TotalLike = 0
 		comm.Num = 0
 		commentPool.Put(comm)
 	}()
 
-	tx.Model(comm).Select("id", "like", "content", "total_like", "time", "num", "rpid", "user_id").
+	tx.Model(comm).Select("id", "content", "total_like", "time", "num", "rpid", "user_id").
 		Where("content = ?", c.Content).Attrs(Comment{
 		Content:   c.Content,
-		Like:      c.Like,
 		Time:      c.Time,
 		Rpid:      c.Rpid,
 		TotalLike: 0,
@@ -79,12 +77,11 @@ func (c *Commentator) BeforeCreate(tx *gorm.DB) error {
 		comm.UserID = c.UserID
 		comm.Rpid = c.Rpid
 		comm.Time = c.Time
-		comm.Like = c.Like
 	}
 	comm.Num++
-	comm.TotalLike += comm.Like
+	comm.TotalLike += c.Like
 
-	tx.Model(comm).Select("Rpid", "TotalLike", "Time", "Num", "Like", "UserID").Updates(comm)
+	tx.Model(comm).Select("Rpid", "TotalLike", "Time", "Num", "UserID").Updates(comm)
 	return nil
 }
 

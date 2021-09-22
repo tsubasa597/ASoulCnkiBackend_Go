@@ -91,7 +91,7 @@ func migrateTable() {
 			panic(err)
 		}
 	}
-	db.AutoMigrate(&entity.Comment{}, &entity.Dynamic{}, &entity.Commentator{})
+	db.AutoMigrate(&entity.Comment{}, &entity.Dynamic{}, &entity.Commentator{}, &entity.User{})
 }
 
 func Get(model entity.Entity) (interface{}, error) {
@@ -125,9 +125,7 @@ func Delete(model entity.Entity) error {
 func Rank(page, size int, time, order string, uids ...string) (replys []vo.Reply, err error) {
 	tx := getReply(page, size)
 
-	for _, uid := range uids {
-		tx.Where("user.uid = ?", uid)
-	}
+	tx.Where("user.uid in ?", uids)
 
 	if time >= "0" {
 		tx.Where("comment.time > ?", time)
@@ -160,7 +158,7 @@ type CommentCache struct {
 
 func GetContent(rpid string) (commentCache []CommentCache) {
 	db.Model(&entity.Commentator{}).Select("commentator.rpid, comment.content").
-		Joins("left join comment comment on commentator.comment_id = comment.id").
+		Joins("inner join comment comment on commentator.comment_id = comment.id").
 		Where("commentator.rpid > ?", rpid).
 		Order("commentator.rpid asc").
 		Find(&commentCache)
@@ -171,9 +169,9 @@ func GetContent(rpid string) (commentCache []CommentCache) {
 func getReply(page, size int) gorm.DB {
 	return *db.Model(&entity.Comment{}).
 		Select("dynamic.type, dynamic.rid as rid, user.uid as uuid, commentator.rpid, commentator.uid as uid, commentator.time, commentator.uname as name, comment.content, commentator.like, comment.rpid as origin_rpid, comment.num, comment.total_like").
-		Joins("left join commentator commentator on comment.rpid = commentator.rpid").
-		Joins("left join dynamic dynamic on dynamic.rid = commentator.dynamic_id").
-		Joins("left join user user on user.id = dynamic.user_id").
+		Joins("inner join commentator commentator on comment.rpid = commentator.rpid").
+		Joins("inner join dynamic dynamic on dynamic.rid = commentator.dynamic_id").
+		Joins("inner join user user on user.id = dynamic.user_id").
 		Limit(size).Offset(size * (page - 1))
 }
 
