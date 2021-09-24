@@ -16,7 +16,7 @@ type Dynamic struct {
 	Time    int32  `json:"time" gorm:"column:time"`
 	Updated bool   `json:"is_update" gorm:"column:is_update"`
 	Name    string `json:"-" gorm:"-"`
-	UserID  uint64
+	UserID  uint64 `json:"-" gorm:"uniqueIndex"`
 }
 
 var (

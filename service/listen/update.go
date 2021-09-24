@@ -23,14 +23,16 @@ func (l Listen) SaveComment(ctx context.Context, userID, dynamicID uint64, ch <-
 				comm := data.GetInstance().(*info.Comment)
 
 				c = append(c, &entity.Commentator{
+					Model: entity.Model{
+						ID: uint64(comm.Rpid),
+					},
 					UID:       comm.UID,
 					UName:     comm.Name,
-					Rpid:      comm.Rpid,
 					Like:      comm.Like,
 					Time:      int64(comm.Time),
+					UserID:    userID,
 					Content:   comm.Content,
 					DynamicID: dynamicID,
-					UserID:    userID,
 				})
 			}
 

@@ -14,9 +14,3 @@ type Reply struct {
 	Num        uint32 `json:"similar_count"`
 	TotalLike  uint32 `json:"similar_like_sum"`
 }
-
-// select dynamic.type, dynamic.rid, user.uid, comment.rpid as origin_rpi, comment.content, comment.total_like, comment.num, commentator.uname, commentator.dynamic_id, commentator.rpid, commentator.like, commentator.uid, commentator.uname, commentator.time, comment.like from commentator commentator left join comment comment on comment.rpid = commentator.rpid, dynamic, user where dynamic.id = commentator.dynamic_id and dynamic.user_id = user.id order by comment.num desc limit 10 offset 20;
-
-// select dynamic.type, dynamic.rid, user.uid, comment.rpid as origin_rpi, comment.content, comment.total_like, comment.num, commentator.uname, commentator.dynamic_id, commentator.rpid, commentator.like, commentator.uid, commentator.uname, commentator.time, comment.like from commentator commentator left join comment comment on comment.rpid = commentator.rpid left join dynamic on dynamic.id = commentator.dynamic_id left join user on user.id = dynamic.user_id order by comment.num desc limit 10 offset 20;
-
-// select dynamic.type, dynamic.rid, user.uid, comment.rpid as origin_rpi, comment.content, comment.total_like, comment.num, commentator.uname, commentator.dynamic_id, commentator.rpid, commentator.like, commentator.uid, commentator.uname, commentator.time, comment.like from comment comment left join commentator commentator on comment.rpid = commentator.rpid left join dynamic dynamic on dynamic.rid = commentator.dynamic_id left join user user on user.id = dynamic.user_id

@@ -16,13 +16,11 @@ type Commentator struct {
 	Model
 	UID       int64  `json:"uid" gorm:"column:uid"`
 	UName     string `json:"uname" gorm:"column:uname"`
-	Rpid      int64  `json:"rpid" gorm:"column:rpid"`
 	Like      uint32 `json:"like" gorm:"column:like"`
 	Time      int64  `json:"-" gorm:"column:time"`
 	Content   string `json:"-" gorm:"-"`
-	UserID    uint64 `json:"-" gorm:"-"`
-	CommentID uint64 `json:"-"`
-	DynamicID uint64 `json:"-"`
+	DynamicID uint64 `json:"-" gorm:"index:idx_dynamic_id"`
+	UserID    uint64 `json:"-" grom:"-"`
 }
 
 var (
@@ -51,37 +49,41 @@ func (c *Commentator) BeforeCreate(tx *gorm.DB) error {
 		comm.UpdateAt = time.Time{}
 		comm.TotalLike = 0
 		comm.Num = 0
+		comm.Like = 0
+		comm.UserID = 0
 		commentPool.Put(comm)
 	}()
 
-	tx.Model(comm).Select("id", "content", "total_like", "time", "num", "rpid", "user_id").
+	tx.Model(comm).Select("id", "content", "total_like", "time", "num", "like", "user_id").
 		Where("content = ?", c.Content).Attrs(Comment{
+		Model: Model{
+			ID: c.ID,
+		},
 		Content:   c.Content,
 		Time:      c.Time,
-		Rpid:      c.Rpid,
 		TotalLike: 0,
 		Num:       0,
+		Like:      c.Like,
 		UserID:    c.UserID,
 	}).FirstOrCreate(comm)
 
-	cache.GetCache().Check.Increment(fmt.Sprint(comm.Rpid), check.HashSet(comm.Content))
-	cache.GetCache().Content.Set(fmt.Sprint(comm.Rpid), comm.Content)
+	cache.GetCache().Check.Increment(fmt.Sprint(comm.ID), check.HashSet(comm.Content))
+	cache.GetCache().Content.Set(fmt.Sprint(comm.ID), comm.Content)
 
-	c.CommentID = comm.ID
-
-	if comm.Rpid == c.Rpid {
+	if comm.ID == c.ID {
 		return nil
 	}
 
 	if comm.Time > c.Time {
-		comm.UserID = c.UserID
-		comm.Rpid = c.Rpid
+		comm.ID = c.ID
 		comm.Time = c.Time
+		comm.Like = c.Like
+		comm.UserID = c.UserID
 	}
 	comm.Num++
 	comm.TotalLike += c.Like
 
-	tx.Model(comm).Select("Rpid", "TotalLike", "Time", "Num", "UserID").Updates(comm)
+	tx.Model(comm).Select("ID", "TotalLike", "Time", "Num", "Like", "UserID").Updates(comm)
 	return nil
 }
 

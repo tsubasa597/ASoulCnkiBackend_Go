@@ -9,9 +9,9 @@ type Comment struct {
 	Content   string `json:"content" gorm:"column:content"`
 	TotalLike uint32 `json:"total_like" gorm:"column:total_like;index:idx_tl_time"`
 	Num       uint32 `json:"num" gorm:"column:num;index:idx_num_time"`
-	Time      int64  `json:"comment_time" gorm:"column:time"`
-	Rpid      int64  `json:"-" gorm:"column:rpid"`
-	UserID    uint64 `json:"-"`
+	Like      uint32 `json:"like" gorm:"column:like;index:idx_like_time"`
+	Time      int64  `json:"comment_time" gorm:"column:time;index:idx_tl_time;index:idx_num_time;index:idx_like_time"`
+	UserID    uint64 `json:"-" gorm:"index:idx_user_id"`
 }
 
 var (

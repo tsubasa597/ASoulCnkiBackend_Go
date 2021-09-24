@@ -78,10 +78,10 @@ func New(log *logrus.Entry) *Listen {
 
 	comms := model.GetContent(val)
 	for _, comm := range comms {
-		if err := cache.GetCache().Content.Set(fmt.Sprint(comm.Rpid), comm.Content); err != nil {
+		if err := cache.GetCache().Content.Set(fmt.Sprint(comm.ID), comm.Content); err != nil {
 			log.WithField("Func", "cache.Set").Error(err)
 		}
-		cache.GetCache().Content.Set("LastCommentID", fmt.Sprint(comm.Rpid))
+		cache.GetCache().Content.Set("LastCommentID", fmt.Sprint(comm.ID))
 	}
 
 	if err := cache.GetCache().Content.Save(); err != nil {
@@ -95,7 +95,7 @@ func New(log *logrus.Entry) *Listen {
 
 	comms = model.GetContent(val)
 	for _, comm := range comms {
-		if err := cache.GetCache().Check.Increment(fmt.Sprint(comm.Rpid), check.HashSet(comm.Content)); err != nil {
+		if err := cache.GetCache().Check.Increment(fmt.Sprint(comm.ID), check.HashSet(comm.Content)); err != nil {
 			log.WithField("Func", "cache.Increment").Error(err)
 		}
 	}
