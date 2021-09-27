@@ -47,8 +47,13 @@ func Compare(s string) vo.Related {
 	}
 
 	related := vo.Related{
-		Related: make([]vo.Reply, 0),
+		Related: make([]vo.Reply, 0, len(commResults)),
 	}
+
+	if len(commResults) > 0 {
+		related.Rate = commResults[0].Similarity
+	}
+
 	for len(commResults) > 0 {
 		comresult := commResults.Pop().(check.CompareResult)
 		if comresult.Similarity < 0.2 {
@@ -59,7 +64,6 @@ func Compare(s string) vo.Related {
 		if err != nil {
 			continue
 		}
-		related.Rate = comresult.Similarity
 		related.Related = append(related.Related, reply)
 	}
 	return related

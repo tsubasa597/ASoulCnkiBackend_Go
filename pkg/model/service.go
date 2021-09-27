@@ -55,7 +55,7 @@ func GetContent(rpid string) (commentCache []CommentCache, err error) {
 
 func getReply(page, size int) gorm.DB {
 	return *db.Model(&entity.User{}).
-		Select("dynamic.type, dynamic.rid as rid, user.uid as uuid, commentator.id as rpid, commentator.uid as uid, commentator.time, commentator.uname as name, comment.content, commentator.like, comment.id as origin_rpid, comment.num, comment.total_like").
+		Select("dynamic.type, dynamic.rid as rid, user.uid as uuid, commentator.rpid as rpid, commentator.uid as uid, commentator.time, commentator.uname as name, comment.content, commentator.like, comment.rpid as origin_rpid, comment.num, comment.total_like").
 		Joins("inner join comment on comment.user_id = user.id").
 		Joins("left join dynamic on dynamic.user_id = user.id").
 		Joins("left join commentator on commentator.rpid = comment.rpid").
