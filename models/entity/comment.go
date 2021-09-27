@@ -12,6 +12,7 @@ type Comment struct {
 	Like      uint32 `json:"like" gorm:"column:like;index:idx_like_time"`
 	Time      int64  `json:"comment_time" gorm:"column:time;index:idx_tl_time;index:idx_num_time;index:idx_like_time"`
 	UserID    uint64 `json:"-" gorm:"index:idx_user_id"`
+	Rpid      int64  `json:"rpid" gorm:"column:rpid;index:idx_rpid"`
 }
 
 var (

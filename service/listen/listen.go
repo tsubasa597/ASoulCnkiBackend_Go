@@ -71,31 +71,39 @@ func New(log *logrus.Entry) *Listen {
 		listen.Add(user)
 	}
 
-	val, err := cache.GetCache().Content.Get("LastCommentID")
+	val, err := cache.GetCache().Content.Get("content", "LastCommentID")
 	if err != nil {
 		val = "0"
 	}
 
-	comms := model.GetContent(val)
+	comms, err := model.GetContent(val)
+	if err != nil {
+		log.WithField("Func", "model.GetContent").Error(err)
+	}
+
 	for _, comm := range comms {
-		if err := cache.GetCache().Content.Set(fmt.Sprint(comm.ID), comm.Content); err != nil {
+		if err := cache.GetCache().Content.Increment("content", fmt.Sprint(comm.ID), comm.Content); err != nil {
 			log.WithField("Func", "cache.Set").Error(err)
 		}
-		cache.GetCache().Content.Set("LastCommentID", fmt.Sprint(comm.ID))
+		cache.GetCache().Content.Increment("content", "LastCommentID", fmt.Sprint(comm.ID))
 	}
 
 	if err := cache.GetCache().Content.Save(); err != nil {
 		log.WithField("Func", "cache.Save").Error(err)
 	}
 
-	val, err = cache.GetCache().Check.Get("LastCommentID")
+	val, err = cache.GetCache().Check.Get("content", "LastCommentID")
 	if err != nil {
 		val = "0"
 	}
 
-	comms = model.GetContent(val)
+	comms, err = model.GetContent(val)
+	if err != nil {
+		log.WithField("Func", "model.GetContent").Error(err)
+	}
+
 	for _, comm := range comms {
-		if err := cache.GetCache().Check.Increment(fmt.Sprint(comm.ID), check.HashSet(comm.Content)); err != nil {
+		if err := cache.GetCache().Check.Increment("check", fmt.Sprint(comm.ID), check.HashSet(comm.Content)); err != nil {
 			log.WithField("Func", "cache.Increment").Error(err)
 		}
 	}

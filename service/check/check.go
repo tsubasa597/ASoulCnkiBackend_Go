@@ -17,7 +17,7 @@ func Compare(s string) vo.Related {
 	commResults := make(check.CompareResults, 0, setting.HeapLength)
 	counts := make(map[string]float64)
 	for _, v := range check.Hash(s) {
-		val, err := cache.GetCache().Check.Get(fmt.Sprint(v))
+		val, err := cache.GetCache().Check.Get("check", fmt.Sprint(v))
 		if err != nil {
 			continue
 		}
@@ -32,7 +32,7 @@ func Compare(s string) vo.Related {
 	for id, count := range counts {
 		charNum := utf8.RuneCountInString(s)
 
-		content, err := cache.GetCache().Content.Get(id)
+		content, err := cache.GetCache().Content.Get("content", id)
 		if err != nil {
 			continue
 		}

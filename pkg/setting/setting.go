@@ -7,11 +7,12 @@ import (
 )
 
 var (
-	RunMode, SQL, Host, User, Password, DBName, LogPath, CacheFilePath string
-	Port, DefaultK, MaxOpen, DefaultPS, MaxConn, HeapLength, Size      int
-	DynamicDuration, GoroutineNum                                      int64
-	DefaultB                                                           float64
-	Enable                                                             bool
+	RunMode, SQL, Host, User, Password                                string
+	DBName, LogPath, CacheFilePath, RedisADDR, RedisPwd               string
+	Port, DefaultK, MaxOpen, DefaultPS, MaxConn, HeapLength, Size, DB int
+	DynamicDuration, GoroutineNum                                     int64
+	DefaultB                                                          float64
+	Enable                                                            bool
 )
 
 func init() {
@@ -28,6 +29,10 @@ func init() {
 	HeapLength = cfg.Section("check").Key("HEAP_LENGTH").MustInt(10)
 
 	DefaultPS = cfg.Section("dynamic").Key("DEFAULT_PS").MustInt(49)
+
+	RedisADDR = cfg.Section("redis").Key("ADDR").MustString("localhost:6379")
+	RedisPwd = cfg.Section("redis").Key("PWD").MustString("")
+	DB = cfg.Section("redis").Key("DB").MustInt(0)
 
 	MaxConn = cfg.Section("sql").Key("MAX_CONN").MustInt(100)
 	MaxOpen = cfg.Section("sql").Key("MAX_OPEN").MustInt(10)

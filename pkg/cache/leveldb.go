@@ -28,7 +28,7 @@ func NewLevelDB(path string) (*LevelDB, error) {
 	}, nil
 }
 
-func (l LevelDB) Get(key string) (string, error) {
+func (l LevelDB) Get(_, key string) (string, error) {
 	l.mutex.RLock()
 	defer l.mutex.RUnlock()
 
@@ -39,41 +39,41 @@ func (l LevelDB) Get(key string) (string, error) {
 	return string(val), nil
 }
 
-func (l LevelDB) Set(key, value string) error {
+func (l LevelDB) Increment(_ string, field string, val interface{}) error {
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
 
-	return l.db.Put([]byte(key), []byte(value), nil)
-}
+	switch v := val.(type) {
+	case map[int64]struct{}:
+		bID := []byte(field)
+		buffer := bytes.Buffer{}
+		key := bytes.Buffer{}
 
-func (l LevelDB) Increment(id string, hashSet map[int64]struct{}) error {
-	l.mutex.Lock()
-	defer l.mutex.Unlock()
+		for k := range v {
+			key.Reset()
+			key.WriteString(fmt.Sprint(k))
 
-	bID := []byte(id)
-	buffer := bytes.Buffer{}
-	key := bytes.Buffer{}
+			if val, err := l.db.Get(key.Bytes(), nil); err == nil {
+				buffer.Reset()
+				buffer.Write(val)
 
-	for k := range hashSet {
-		key.Reset()
-		key.WriteString(fmt.Sprint(k))
+				if bytes.Contains(val, bID) {
+					continue
+				}
 
-		if val, err := l.db.Get(key.Bytes(), nil); err == nil {
-			buffer.Reset()
-			buffer.Write(val)
-
-			if bytes.Contains(val, bID) {
+				buffer.WriteString(",")
+				buffer.Write(bID)
+				l.db.Put(key.Bytes(), buffer.Bytes(), nil)
 				continue
 			}
-
-			buffer.WriteString(",")
-			buffer.Write(bID)
-			l.db.Put(key.Bytes(), buffer.Bytes(), nil)
-			continue
+			l.db.Put(key.Bytes(), bID, nil)
 		}
-		l.db.Put(key.Bytes(), bID, nil)
+		l.db.Put([]byte("LastCommentID"), bID, nil)
+	case string:
+		l.db.Put([]byte(field), []byte(v), nil)
+		l.db.Put([]byte("LastCommentID"), []byte(field), nil)
 	}
-	l.db.Put([]byte("LastCommentID"), bID, nil)
+
 	return nil
 }
 

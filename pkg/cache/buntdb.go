@@ -18,7 +18,7 @@ type BuntDB struct {
 
 var _ Cacher = (*BuntDB)(nil)
 
-func (b BuntDB) Get(v string) (val string, err error) {
+func (b BuntDB) Get(_, v string) (val string, err error) {
 	if err = b.db.View(func(tx *buntdb.Tx) error {
 		val, err = tx.Get(v)
 		if err != nil {
@@ -30,13 +30,6 @@ func (b BuntDB) Get(v string) (val string, err error) {
 		return
 	}
 	return
-}
-
-func (b BuntDB) Set(key, value string) error {
-	return b.db.Update(func(tx *buntdb.Tx) error {
-		_, _, err := tx.Set(key, value, nil)
-		return err
-	})
 }
 
 func NewBuntDB(path string) (*BuntDB, error) {
@@ -79,20 +72,26 @@ func (b BuntDB) Save() error {
 	return b.db.Save(file)
 }
 
-func (b BuntDB) Increment(id string, hashSet map[int64]struct{}) error {
+func (b BuntDB) Increment(_ string, field string, val interface{}) error {
 	b.db.Update(func(tx *buntdb.Tx) error {
-		for k := range hashSet {
-			if val, err := tx.Get(fmt.Sprint(k)); err == nil {
-				if strings.Contains(val, id) {
+		switch v := val.(type) {
+		case map[int64]struct{}:
+			for k := range v {
+				if val, err := tx.Get(fmt.Sprint(k)); err == nil {
+					if strings.Contains(val, field) {
+						continue
+					}
+
+					tx.Set(fmt.Sprint(k), val+","+field, nil)
 					continue
 				}
-
-				tx.Set(fmt.Sprint(k), val+","+id, nil)
-				continue
+				tx.Set(fmt.Sprint(k), field, nil)
 			}
-			tx.Set(fmt.Sprint(k), id, nil)
+			tx.Set("LastCommentID", field, nil)
+		case string:
+			tx.Set(field, v, nil)
+			tx.Set("LastCommentID", field, nil)
 		}
-		tx.Set("LastCommentID", id, nil)
 
 		return nil
 	})

@@ -3,10 +3,9 @@ package cache
 import "sync"
 
 type Cacher interface {
-	Get(string) (string, error)
-	Set(string, string) error
+	Get(string, string) (string, error)
 	Save() error
-	Increment(string, map[int64]struct{}) error
+	Increment(string, string, interface{}) error
 	Stop()
 }
 
@@ -29,12 +28,12 @@ func (c Cache) Stop() {
 
 func Setup() {
 	once.Do(func() {
-		check, err := NewBuntDB("/check")
+		check, err := NewRedis()
 		if err != nil {
 			panic(err)
 		}
 
-		content, err := NewBuntDB("/content")
+		content, err := NewRedis()
 		if err != nil {
 			panic(err)
 		}

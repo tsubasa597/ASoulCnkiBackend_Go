@@ -11,7 +11,6 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/tsubasa597/ASoulCnkiBackend/pkg/cache"
-	"github.com/tsubasa597/ASoulCnkiBackend/pkg/logging"
 	"github.com/tsubasa597/ASoulCnkiBackend/pkg/model"
 	"github.com/tsubasa597/ASoulCnkiBackend/pkg/setting"
 	"github.com/tsubasa597/ASoulCnkiBackend/routers"
@@ -19,7 +18,7 @@ import (
 )
 
 func main() {
-	logging.Write()
+	setting.Write()
 
 	model.Setup()
 	cache.Setup()
