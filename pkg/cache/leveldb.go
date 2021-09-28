@@ -9,6 +9,7 @@ import (
 	"github.com/tsubasa597/ASoulCnkiBackend/pkg/setting"
 )
 
+// LevelDB 缓存
 type LevelDB struct {
 	db    *leveldb.DB
 	mutex *sync.RWMutex
@@ -16,6 +17,7 @@ type LevelDB struct {
 
 var _ Cacher = (*LevelDB)(nil)
 
+// NewLevelDB 实例化 LevelDB
 func NewLevelDB(path string) (*LevelDB, error) {
 	db, err := leveldb.OpenFile(setting.CacheFilePath+path, nil)
 	if err != nil {
@@ -28,6 +30,7 @@ func NewLevelDB(path string) (*LevelDB, error) {
 	}, nil
 }
 
+// Get 获取缓存值
 func (l LevelDB) Get(_, key string) (string, error) {
 	l.mutex.RLock()
 	defer l.mutex.RUnlock()
@@ -39,6 +42,7 @@ func (l LevelDB) Get(_, key string) (string, error) {
 	return string(val), nil
 }
 
+// Increment 添加数据
 func (l LevelDB) Increment(_ string, field string, val interface{}) error {
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
@@ -77,10 +81,12 @@ func (l LevelDB) Increment(_ string, field string, val interface{}) error {
 	return nil
 }
 
+// Save 持久化
 func (l LevelDB) Save() error {
 	return nil
 }
 
+// Stop 停止
 func (l LevelDB) Stop() {
 
 }

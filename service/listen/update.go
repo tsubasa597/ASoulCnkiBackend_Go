@@ -78,9 +78,7 @@ func (l Listen) SaveDyanmic(ctx context.Context, userID uint64, ch <-chan []info
 			continue
 		}
 
-		sort.Slice(dynamics, func(i, j int) bool {
-			return dynamics[i].Time < dynamics[j].Time
-		})
+		sort.Sort(dynamics)
 		model.Add(dynamics)
 	}
 }

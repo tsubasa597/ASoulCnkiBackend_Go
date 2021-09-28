@@ -10,6 +10,7 @@ import (
 	"github.com/tsubasa597/ASoulCnkiBackend/pkg/setting"
 )
 
+// BuntDB 缓存
 type BuntDB struct {
 	db       *buntdb.DB
 	mutex    *sync.Mutex
@@ -18,6 +19,7 @@ type BuntDB struct {
 
 var _ Cacher = (*BuntDB)(nil)
 
+// Get 获取缓存值
 func (b BuntDB) Get(_, v string) (val string, err error) {
 	if err = b.db.View(func(tx *buntdb.Tx) error {
 		val, err = tx.Get(v)
@@ -32,6 +34,7 @@ func (b BuntDB) Get(_, v string) (val string, err error) {
 	return
 }
 
+// NewBuntDB 实例化 BuntDB
 func NewBuntDB(path string) (*BuntDB, error) {
 	b := &BuntDB{
 		mutex:    &sync.Mutex{},
@@ -56,6 +59,7 @@ func NewBuntDB(path string) (*BuntDB, error) {
 	return b, nil
 }
 
+// Save 持久化
 func (b BuntDB) Save() error {
 	b.mutex.Lock()
 	defer b.mutex.Unlock()
@@ -72,6 +76,7 @@ func (b BuntDB) Save() error {
 	return b.db.Save(file)
 }
 
+// Increment 添加数据
 func (b BuntDB) Increment(_ string, field string, val interface{}) error {
 	b.db.Update(func(tx *buntdb.Tx) error {
 		switch v := val.(type) {
@@ -99,6 +104,7 @@ func (b BuntDB) Increment(_ string, field string, val interface{}) error {
 	return nil
 }
 
+// Stop 停止
 func (b BuntDB) Stop() {
 	b.mutex.Lock()
 	defer b.mutex.Unlock()

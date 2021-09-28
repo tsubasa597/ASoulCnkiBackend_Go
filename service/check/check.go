@@ -13,6 +13,7 @@ import (
 	"github.com/tsubasa597/ASoulCnkiBackend/pkg/setting"
 )
 
+// Compare 查重
 func Compare(s string) vo.Related {
 	commResults := make(check.CompareResults, 0, setting.HeapLength)
 	counts := make(map[string]float64)

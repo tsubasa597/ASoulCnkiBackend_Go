@@ -9,6 +9,7 @@ import (
 	"github.com/tsubasa597/ASoulCnkiBackend/service/rank"
 )
 
+// Rank 作文展
 func Rank(ctx *gin.Context) {
 	var (
 		page, size int

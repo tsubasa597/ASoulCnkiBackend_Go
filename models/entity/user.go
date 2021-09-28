@@ -1,5 +1,6 @@
 package entity
 
+// User 用户表
 type User struct {
 	Model
 	UID             int64  `json:"uid" gorm:"column:uid;uniqueIndex"`
@@ -9,10 +10,12 @@ type User struct {
 
 var _ Entity = (*User)(nil)
 
+// GetModels 查询时返回的切片
 func (User) GetModels() interface{} {
 	return &[]User{}
 }
 
+// TableName 表名称
 func (User) TableName() string {
 	return "user"
 }

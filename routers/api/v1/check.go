@@ -9,6 +9,7 @@ import (
 	"github.com/tsubasa597/ASoulCnkiBackend/service/check"
 )
 
+// Check 查重
 func Check(ctx *gin.Context) {
 	text := ctx.PostForm("text")
 	if utf8.RuneCountInString(text) < 8 {

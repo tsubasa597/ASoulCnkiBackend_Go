@@ -6,11 +6,13 @@ import (
 	"github.com/tsubasa597/ASoulCnkiBackend/pkg/setting"
 )
 
+// CompareResult 查重结果
 type CompareResult struct {
 	ID         string
 	Similarity float64
 }
 
+// CompareResults 查重结果切片
 type CompareResults []CompareResult
 
 var _ heap.Interface = (*CompareResults)(nil)
@@ -31,6 +33,7 @@ func (r CompareResults) Swap(i, j int) {
 	r[i], r[j] = r[j], r[i]
 }
 
+// Pop 弹出
 func (r *CompareResults) Pop() interface{} {
 	old := *r
 	*r = old[1:]
@@ -38,6 +41,7 @@ func (r *CompareResults) Pop() interface{} {
 	return old[0]
 }
 
+// Push 推入
 func (r *CompareResults) Push(data interface{}) {
 	if len(*r) == setting.HeapLength {
 		*r = (*r)[:setting.HeapLength-1]

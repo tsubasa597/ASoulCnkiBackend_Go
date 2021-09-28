@@ -12,6 +12,7 @@ import (
 	"gorm.io/gorm/clause"
 )
 
+// Commentator 评论人表
 type Commentator struct {
 	Model
 	UID       int64  `json:"uid" gorm:"column:uid"`
@@ -19,8 +20,8 @@ type Commentator struct {
 	Like      uint32 `json:"like" gorm:"column:like"`
 	Time      int64  `json:"-" gorm:"column:time"`
 	Content   string `json:"-" gorm:"-"`
-	DynamicID uint64 `json:"-" gorm:"index:idx_dynamic_id"`
 	UserID    uint64 `json:"-" grom:"-"`
+	DynamicID uint64 `json:"-" gorm:"index:idx_dynamic_id"`
 	CommentID uint64 `json:"-"`
 	Rpid      int64  `json:"rpid" gorm:"column:rpid;index:idx_rpid"`
 }
@@ -35,14 +36,17 @@ var (
 	}
 )
 
+// TableName 表名称
 func (Commentator) TableName() string {
 	return "commentator"
 }
 
+// GetModels 查询时返回的切片
 func (Commentator) GetModels() interface{} {
 	return &[]Commentator{}
 }
 
+// BeforeCreate 在插入之前更新评论表中的数据
 func (c *Commentator) BeforeCreate(tx *gorm.DB) error {
 	comm := commentPool.Get().(*Comment)
 	defer func() {
@@ -87,18 +91,22 @@ func (c *Commentator) BeforeCreate(tx *gorm.DB) error {
 	return nil
 }
 
+// Commentators 批量插入使用
 type Commentators []*Commentator
 
+// GetClauses 插入时冲突解决方法
 func (Commentators) GetClauses() clause.OnConflict {
 	return clause.OnConflict{
 		DoNothing: true,
 	}
 }
 
+// GetModels 查询时返回的切片
 func (Commentators) GetModels() interface{} {
 	return nil
 }
 
+// TableName 表名称
 func (Commentators) TableName() string {
 	return "commentator"
 }

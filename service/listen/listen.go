@@ -14,6 +14,7 @@ import (
 	"github.com/tsubasa597/BILIBILI-HELPER/listen"
 )
 
+// Listen 自动更新
 type Listen struct {
 	comment *listen.Listen
 	dynamic *listen.Listen
@@ -21,12 +22,14 @@ type Listen struct {
 	log     *logrus.Entry
 }
 
+// Stop 停止
 func (lis Listen) Stop() {
 	lis.dynamic.Stop()
 	lis.comment.Stop()
 	lis.Enable = false
 }
 
+// Add 添加监听用户
 func (lis Listen) Add(user entity.User) {
 	if !lis.Enable {
 		return
@@ -43,6 +46,7 @@ func (lis Listen) Add(user entity.User) {
 	go lis.SaveDyanmic(ctx, user.ID, ch)
 }
 
+// New 实例化
 func New(log *logrus.Entry) *Listen {
 	ctx := context.Background()
 	comm := listen.New(ctx, listen.NewComment(ctx, setting.GoroutineNum, log), nil, log)

@@ -5,6 +5,7 @@ import (
 	"gorm.io/gorm"
 )
 
+// Param 查询筛选条件
 type Param struct {
 	Page  int
 	Size  int

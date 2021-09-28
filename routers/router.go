@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// Init 初始化 gin
 func Init() *gin.Engine {
 	router := gin.New()
 

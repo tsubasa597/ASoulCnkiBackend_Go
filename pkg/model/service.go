@@ -7,7 +7,8 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-func Rank(page, size int, time, order string, uids ...string) (replys []vo.Reply, err error) {
+// Rank 作文展数据查询
+func Rank(page, size int, time, order string, uids ...string) (replys []vo.Reply, count int64, err error) {
 	tx := getReply(page, size)
 
 	if len(uids) > 0 {
@@ -26,9 +27,10 @@ func Rank(page, size int, time, order string, uids ...string) (replys []vo.Reply
 	}
 
 	tx.Find(&replys)
-	return replys, tx.Error
+	return replys, tx.RowsAffected, tx.Error
 }
 
+// Check 查重数据查询
 func Check(rpid string) (vo.Reply, error) {
 	reply := vo.Reply{}
 
@@ -38,11 +40,13 @@ func Check(rpid string) (vo.Reply, error) {
 	return reply, tx.Error
 }
 
+// CommentCache 评论缓存，用于查重
 type CommentCache struct {
 	ID      int64
 	Content string
 }
 
+// GetContent 初始化缓存
 func GetContent(rpid string) (commentCache []CommentCache, err error) {
 	err = db.Model(&entity.Commentator{}).Select("commentator.id, comment.content").
 		Joins("inner join comment comment on commentator.id = comment.id").
@@ -53,6 +57,7 @@ func GetContent(rpid string) (commentCache []CommentCache, err error) {
 	return
 }
 
+// getReply 查询条件拼接
 func getReply(page, size int) gorm.DB {
 	return *db.Model(&entity.User{}).
 		Select("dynamic.type, dynamic.rid as rid, user.uid as uuid, commentator.rpid as rpid, commentator.uid as uid, commentator.time, commentator.uname as name, comment.content, commentator.like, comment.rpid as origin_rpid, comment.num, comment.total_like").

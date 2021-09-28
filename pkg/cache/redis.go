@@ -10,6 +10,7 @@ import (
 	"github.com/tsubasa597/ASoulCnkiBackend/pkg/setting"
 )
 
+// Redis 缓存
 type Redis struct {
 	db    *redis.Client
 	mutex *sync.Mutex
@@ -20,10 +21,12 @@ var (
 	ctx context.Context = context.Background()
 )
 
+// Get 获取缓存值
 func (r Redis) Get(key, field string) (string, error) {
 	return r.db.HGet(ctx, key, field).Result()
 }
 
+// NewRedis 实例化 Redis
 func NewRedis() (*Redis, error) {
 	db := redis.NewClient(&redis.Options{
 		Addr:     setting.RedisADDR,
@@ -40,10 +43,12 @@ func NewRedis() (*Redis, error) {
 	}, nil
 }
 
+// Save 持久化
 func (r Redis) Save() error {
 	return nil
 }
 
+// Increment 添加数据
 func (r Redis) Increment(key string, field string, val interface{}) error {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
@@ -71,6 +76,7 @@ func (r Redis) Increment(key string, field string, val interface{}) error {
 	return nil
 }
 
+// Stop 停止
 func (r Redis) Stop() {
 	// r.db.ShutdownSave(ctx)
 }

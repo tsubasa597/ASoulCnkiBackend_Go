@@ -9,6 +9,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// Write 写入日志
 func Write() {
 	if RunMode == "debug" {
 		logrus.SetLevel(logrus.DebugLevel)

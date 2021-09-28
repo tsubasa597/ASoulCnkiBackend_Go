@@ -1,5 +1,6 @@
 package vo
 
+// Reply 单条数据结构
 type Reply struct {
 	Type       uint8  `json:"type_id"`
 	Rid        int64  `json:"oid"`

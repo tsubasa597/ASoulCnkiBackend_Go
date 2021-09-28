@@ -2,6 +2,7 @@ package cache
 
 import "sync"
 
+// Cacher 缓存接口
 type Cacher interface {
 	Get(string, string) (string, error)
 	Save() error
@@ -9,16 +10,13 @@ type Cacher interface {
 	Stop()
 }
 
-var (
-	cache Cache
-	once  sync.Once = sync.Once{}
-)
-
+// Cache 缓存实例
 type Cache struct {
 	Check   Cacher
 	Content Cacher
 }
 
+// Stop 停止
 func (c Cache) Stop() {
 	c.Check.Save()
 	c.Content.Save()
@@ -26,6 +24,7 @@ func (c Cache) Stop() {
 	c.Content.Stop()
 }
 
+// Setup 初始化
 func Setup() {
 	once.Do(func() {
 		check, err := NewRedis()
@@ -45,6 +44,12 @@ func Setup() {
 	})
 }
 
+// GetCache 获取缓存实例
 func GetCache() Cache {
 	return cache
 }
+
+var (
+	cache Cache
+	once  sync.Once = sync.Once{}
+)

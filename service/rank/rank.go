@@ -27,12 +27,13 @@ func Do(page, size int, t, sort string, uids ...string) *vo.Response {
 		sort = "num"
 	}
 
-	replys, err := model.Rank(page, size, t, sort, uids...)
+	replys, count, err := model.Rank(page, size, t, sort, uids...)
 	if err != nil {
 		return nil
 	}
 
 	return vo.Sucess(&vo.Replies{
-		Replies: replys,
+		Replies:  replys,
+		AllCount: count,
 	})
 }

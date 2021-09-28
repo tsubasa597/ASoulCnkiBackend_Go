@@ -8,6 +8,7 @@ import (
 	"github.com/tsubasa597/ASoulCnkiBackend/pkg/setting"
 )
 
+// Hash 提取评论 hash
 func Hash(s string) []int64 {
 	s = ReplaceStr(s)
 	n := utf8.RuneCountInString(s)
@@ -22,6 +23,7 @@ func Hash(s string) []int64 {
 	return hashs
 }
 
+// HashSet 提取评论 hash(去重结果)
 func HashSet(s string) map[int64]struct{} {
 	s = ReplaceStr(s)
 	hashs := make(map[int64]struct{})
@@ -35,6 +37,7 @@ func HashSet(s string) map[int64]struct{} {
 	return hashs
 }
 
+// CompareStr 比较两个字符串相似度
 func CompareStr(s1, s2 string) float64 {
 	h1, h2 := Hash(s1), HashSet(s2)
 	set := make(map[int64]struct{})
@@ -55,6 +58,7 @@ func CompareStr(s1, s2 string) float64 {
 	return count / float64(charNum)
 }
 
+// ReplaceStr 去除多余字符
 func ReplaceStr(s string) string {
 	return replacer.Replace(s)
 }

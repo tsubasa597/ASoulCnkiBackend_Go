@@ -18,6 +18,7 @@ var (
 	db *gorm.DB
 )
 
+// Setup 初始化数据库
 func Setup() {
 	var err error
 
@@ -92,6 +93,7 @@ func migrateTable() {
 	db.AutoMigrate(&entity.Comment{}, &entity.Dynamic{}, &entity.Commentator{}, &entity.User{})
 }
 
+// Get 获取所有数据
 func Get(model entity.Entity) (interface{}, error) {
 	models := model.GetModels()
 	db.Find(models)
@@ -99,6 +101,7 @@ func Get(model entity.Entity) (interface{}, error) {
 	return models, db.Error
 }
 
+// Find 条件查询
 func Find(model entity.Entity, param Param) (interface{}, error) {
 	models := model.GetModels()
 
@@ -108,14 +111,17 @@ func Find(model entity.Entity, param Param) (interface{}, error) {
 	return models, db.Error
 }
 
+// Add 添加数据
 func Add(model entity.Entity) error {
 	return db.Clauses(model.GetClauses()).Create(model).Error
 }
 
+// Update 更新数据
 func Update(model entity.Entity, param Param) error {
 	return db.Model(model).Select(param.Field).Updates(model).Error
 }
 
+// Delete 删除数据
 func Delete(model entity.Entity) error {
 	return db.Delete(model).Error
 }
