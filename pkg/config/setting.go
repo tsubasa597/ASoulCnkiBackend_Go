@@ -1,11 +1,5 @@
 package config
 
-import (
-	"fmt"
-
-	"github.com/go-ini/ini"
-)
-
 var (
 	// RunMode 运行模式
 	RunMode string
@@ -52,39 +46,3 @@ var (
 	// RPC 是否启动 RPC 服务
 	RPCEnable bool
 )
-
-func init() {
-	cfg, err := ini.Load("./conf/conf.ini")
-	if err != nil {
-		panic(fmt.Sprintf("Fail to parse 'conf/app.ini': %v", err))
-	}
-	RunMode = cfg.Section("web").Key("RUN_MODE").MustString("debug")
-	Port = cfg.Section("web").Key("PORT").MustInt(8000)
-	Size = cfg.Section("web").Key("SIZE").MustInt(10)
-
-	DefaultB = cfg.Section("check").Key("DEFAULT_B").MustFloat64(2)
-	DefaultK = cfg.Section("check").Key("DEFAULT_K").MustInt(8)
-	HeapLength = cfg.Section("check").Key("HEAP_LENGTH").MustInt(10)
-
-	RedisADDR = cfg.Section("redis").Key("ADDR").MustString("localhost:6379")
-	RedisPwd = cfg.Section("redis").Key("PWD").MustString("")
-	DB = cfg.Section("redis").Key("DB").MustInt(0)
-
-	MaxConn = cfg.Section("sql").Key("MAX_CONN").MustInt(100)
-	MaxOpen = cfg.Section("sql").Key("MAX_OPEN").MustInt(10)
-	SQL = cfg.Section("sql").Key("SQL").MustString("sqllite")
-	Host = cfg.Section("sql").Key("HOST").MustString("")
-	User = cfg.Section("sql").Key("USER").MustString("")
-	Password = cfg.Section("sql").Key("PASSWORD").MustString("")
-	DBName = cfg.Section("sql").Key("DBNAME").MustString("")
-
-	LogPath = cfg.Section("log").Key("PATH").MustString("./log")
-
-	Enable = cfg.Section("listen").Key("ENABLE").MustBool(true)
-	DynamicDuration = cfg.Section("listen").Key("DYNAMIC_DURATION").MustInt64(5)
-
-	CacheFilePath = cfg.Section("cache").Key("PATH").MustString("./cache.dat")
-
-	RPCPath = cfg.Section("rpc").Key("PATH").MustString("127.0.0.1:8080")
-	RPCEnable = cfg.Section("rpc").Key("ENABLE").MustBool(false)
-}
