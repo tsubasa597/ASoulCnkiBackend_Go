@@ -23,7 +23,11 @@ type Listen struct {
 	log     *logrus.Logger
 }
 
-func Setup() (*Listen, error) {
+var (
+	_listen *Listen
+)
+
+func Setup() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	lis := &Listen{
 		Ctx:    ctx,
@@ -31,27 +35,28 @@ func Setup() (*Listen, error) {
 	}
 
 	if !config.Enable {
-		return lis, nil
+		_listen = lis
+		return nil
 	}
 	lis.dynamic = task.New(ctx)
 	lis.comment = task.New(ctx)
 
 	log, err := config.NewLogFile("/listen")
 	if err != nil {
-		return nil, err
+		return err
 	}
 	lis.log = log
 
 	if config.RPCEnable {
 		if err := rpcv1.Setup(); err != nil {
-			return nil, err
+			return err
 		}
 
 		lis.rpc = true
 	}
 
 	if users, err := dao.Get(&entity.User{}); err != nil {
-		return nil, err
+		return err
 	} else {
 		for _, user := range *users.(*[]entity.User) {
 			lis.addDynamic(user.UID, user.LastDynamicTime)
@@ -69,7 +74,9 @@ func Setup() (*Listen, error) {
 
 	lis.comment.Start()
 	lis.dynamic.Start()
-	return lis, nil
+
+	_listen = lis
+	return nil
 }
 
 func (l Listen) SaveDynamic() {
@@ -104,7 +111,7 @@ func (l Listen) SaveComment() {
 			continue
 		}
 
-		if err := cache.GetCache().Store(data.([]info.Comment)); err != nil {
+		if err := cache.GetInstance().Store(data.([]info.Comment)); err != nil {
 			l.log.Error(err)
 		}
 	}
@@ -131,7 +138,11 @@ func (l Listen) addComment(t, rid int64, typ info.Type) {
 	if l.rpc {
 		l.comment.Add(rid, rpcv1.NewComment(l.Ctx, t, rid, info.Type(typ), l.log))
 	} else {
-		// timeCell 间隔时间为 1s
-		l.comment.Add(rid, task.NewComment(rid, t, time.Duration(1), info.Type(typ), l.log))
+		l.comment.Add(rid, task.NewComment(rid, t, time.Duration(1 /* timeCell 间隔时间为 1s */),
+			info.Type(typ), l.log))
 	}
+}
+
+func GetInstance() *Listen {
+	return _listen
 }

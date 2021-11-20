@@ -11,16 +11,16 @@ import (
 // Comment 评论表
 type Comment struct {
 	Model
-	Content    string `json:"content" gorm:"column:content"`
-	TotalLike  uint32 `json:"total_like" gorm:"column:total_like;index:idx_tl_time"`
-	Num        uint32 `json:"num" gorm:"column:num;index:idx_num_time"`
-	LikeNum    uint32 `json:"like" gorm:"column:like_num;index:idx_like_time"`
-	Time       int64  `json:"comment_time" gorm:"column:time;index:idx_tl_time;index:idx_num_time;index:idx_like_time"`
-	DynamicUID int64  `json:"-" gorm:"index:idx_dy_uid"`
-	DynamicID  uint64 `json:"-" gorm:"column:dynamic_id"`
-	Rpid       int64  `json:"rpid" gorm:"column:rpid"`
-	UID        int64  `json:"-" gorm:"-"`
-	Name       string `json:"-" gorm:"-"`
+	Content    string `gorm:"column:content"`
+	TotalLike  uint32 `gorm:"column:total_like;index:idx_tl_time"`
+	Num        uint32 `gorm:"column:num;index:idx_num_time"`
+	LikeNum    uint32 `gorm:"column:like_num;index:idx_like_time"`
+	Time       int64  `gorm:"column:time;index:idx_tl_time;index:idx_num_time;index:idx_like_time"`
+	DynamicUID int64  `gorm:"index:idx_dy_uid"`
+	DynamicID  uint64 `gorm:"column:dynamic_id"`
+	Rpid       int64  `gorm:"column:rpid"`
+	UID        int64  `gorm:"-"`
+	Name       string `gorm:"-"`
 }
 
 var (
@@ -83,10 +83,11 @@ func (c *Comment) BeforeCreate(tx *gorm.DB) error {
 	tx.Model(commentator).Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "rpid"}},
 		DoUpdates: clause.AssignmentColumns([]string{"like_num"}),
-	}).Select("dynamic_id", "like_num", "rpid", "time", "uid", "uname", "comment_id").Create(commentator)
+	}).Select("dynamic_id", "like_num", "rpid", "time", "uid", "uname", "comment_id").
+		Create(commentator)
 
-	if tx.Model(comment).Select("id", "time", "rpid", "like_num", "dynamic_uid", "dynamic_id", "num", "total_like").
-		Where("content = ?", c.Content).Find(comment).RowsAffected != 0 {
+	if tx.Model(comment).Select("id", "time", "rpid", "like_num", "dynamic_uid", "dynamic_id",
+		"num", "total_like").Where("content = ?", c.Content).Find(comment).RowsAffected != 0 {
 
 		c.ID = comment.ID
 		c.TotalLike = comment.TotalLike + c.LikeNum - likeNum

@@ -16,9 +16,9 @@ type Entity interface {
 
 // Model 公共结构
 type Model struct {
-	ID       uint64    `json:"-" gorm:"primaryKey;autoIncrement;autoIncrementIncrement:1"`
-	CreateAt time.Time `json:"-" gorm:"autoCreateTime"`
-	UpdateAt time.Time `json:"-" gorm:"autoUpdateTime"`
+	ID       uint64    `gorm:"primaryKey;autoIncrement;autoIncrementIncrement:1"`
+	CreateAt time.Time `gorm:"autoCreateTime"`
+	UpdateAt time.Time `gorm:"autoUpdateTime"`
 }
 
 // GetClauses 插入时冲突解决方法

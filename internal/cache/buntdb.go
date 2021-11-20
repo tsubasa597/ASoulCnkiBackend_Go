@@ -19,21 +19,6 @@ type BuntDB struct {
 
 var _ Cacher = (*BuntDB)(nil)
 
-// Get 获取缓存值
-func (b BuntDB) Get(_, v string) (val string, err error) {
-	if err = b.db.View(func(tx *buntdb.Tx) error {
-		val, err = tx.Get(v)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	}); err != nil {
-		return
-	}
-	return
-}
-
 // NewBuntDB 实例化 BuntDB
 func NewBuntDB(path string) (*BuntDB, error) {
 	b := &BuntDB{
@@ -62,6 +47,21 @@ func NewBuntDB(path string) (*BuntDB, error) {
 	}
 
 	return b, nil
+}
+
+// Get 获取缓存值
+func (b BuntDB) Get(_, v string) (val string, err error) {
+	if err = b.db.View(func(tx *buntdb.Tx) error {
+		val, err = tx.Get(v)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}); err != nil {
+		return
+	}
+	return
 }
 
 // Save 持久化

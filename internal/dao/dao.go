@@ -14,7 +14,7 @@ import (
 )
 
 var (
-	db *gorm.DB
+	_db *gorm.DB
 )
 
 // Setup 初始化数据库
@@ -27,7 +27,7 @@ func Setup() error {
 
 	switch config.SQL {
 	case "mysql":
-		db, err = gorm.Open(
+		_db, err = gorm.Open(
 			mysql.Open(fmt.Sprintf("%s:%s@tcp(%s)/%s?charset=utf8mb4&parseTime=True&loc=Local",
 				config.User, config.Password, config.Host, config.DBName)),
 			&gorm.Config{
@@ -44,7 +44,7 @@ func Setup() error {
 		return fmt.Errorf(e.ErrHasNoDataBase)
 	}
 
-	if err := db.Use(dbresolver.Register(dbresolver.Config{}).
+	if err := _db.Use(dbresolver.Register(dbresolver.Config{}).
 		SetConnMaxIdleTime(time.Hour).
 		SetConnMaxLifetime(24 * time.Hour).
 		SetMaxIdleConns(config.MaxOpen).
@@ -54,7 +54,7 @@ func Setup() error {
 	}
 
 	if config.RunMode == "debug" {
-		db = db.Debug()
+		_db = _db.Debug()
 	}
 
 	if err := migrateTable(); err != nil {
@@ -65,12 +65,12 @@ func Setup() error {
 }
 
 func migrateTable() error {
-	if !db.Migrator().HasTable(&entity.User{}) {
-		if err := db.AutoMigrate(&entity.User{}); err != nil {
+	if !_db.Migrator().HasTable(&entity.User{}) {
+		if err := _db.AutoMigrate(&entity.User{}); err != nil {
 			return err
 		}
 
-		err := db.Create([]entity.User{
+		err := _db.Create([]entity.User{
 			{
 				UID:             351609538,
 				LastDynamicTime: 1606403616,
@@ -101,18 +101,18 @@ func migrateTable() error {
 		}
 	}
 
-	return db.AutoMigrate(&entity.Comment{}, &entity.Dynamic{}, &entity.Commentator{}, &entity.User{})
+	return _db.AutoMigrate(&entity.Comment{}, &entity.Dynamic{}, &entity.Commentator{}, &entity.User{})
 }
 
 // Get 获取所有数据
 func Get(model entity.Entity) (interface{}, error) {
 	models := model.GetModels()
-	db.Find(models)
+	_db.Find(models)
 
-	return models, db.Error
+	return models, _db.Error
 }
 
 // Add 添加数据
 func Add(model entity.Entity, batchSize int) error {
-	return db.Clauses(model.GetClauses()).CreateInBatches(model, batchSize).Error
+	return _db.Clauses(model.GetClauses()).CreateInBatches(model, batchSize).Error
 }

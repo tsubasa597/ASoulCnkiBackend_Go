@@ -42,6 +42,18 @@ var (
 	CommentTimeCell time.Duration = 1 * time.Hour
 )
 
+func NewComment(ctx context.Context, t, rid int64, typ info.Type, log *logrus.Logger) *RPCComment {
+	return &RPCComment{
+		RID:      rid,
+		Type:     typ,
+		Ctx:      ctx,
+		Time:     t,
+		timeCell: CommentTimeCell,
+		log:      log,
+		state:    state.Runing,
+	}
+}
+
 func (r *RPCComment) Run(ch chan<- interface{}) {
 	if r.State() == state.Stop {
 		return
@@ -98,16 +110,4 @@ func (r RPCComment) Next(t time.Time) time.Time {
 	}
 
 	return t.Add(time.Second * r.timeCell)
-}
-
-func NewComment(ctx context.Context, t, rid int64, typ info.Type, log *logrus.Logger) *RPCComment {
-	return &RPCComment{
-		RID:      rid,
-		Type:     typ,
-		Ctx:      ctx,
-		Time:     t,
-		timeCell: CommentTimeCell,
-		log:      log,
-		state:    state.Runing,
-	}
 }

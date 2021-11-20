@@ -14,20 +14,17 @@ import (
 type Redis struct {
 	db    *redis.Client
 	mutex *sync.Mutex
+	ctx   context.Context
 }
 
 var (
-	_   Cacher          = (*Redis)(nil)
-	ctx context.Context = context.Background()
+	_ Cacher = (*Redis)(nil)
 )
-
-// Get 获取缓存值
-func (r Redis) Get(key, field string) (string, error) {
-	return r.db.HGet(ctx, key, field).Result()
-}
 
 // NewRedis 实例化 Redis
 func NewRedis() (*Redis, error) {
+	ctx := context.Background()
+
 	db := redis.NewClient(&redis.Options{
 		Addr:     config.RedisADDR,
 		Password: config.RedisPwd,
@@ -40,7 +37,13 @@ func NewRedis() (*Redis, error) {
 	return &Redis{
 		db:    db,
 		mutex: &sync.Mutex{},
+		ctx:   ctx,
 	}, nil
+}
+
+// Get 获取缓存值
+func (r Redis) Get(key, field string) (string, error) {
+	return r.db.HGet(r.ctx, key, field).Result()
 }
 
 // Save 持久化
@@ -56,19 +59,19 @@ func (r Redis) Increment(key string, field string, val interface{}) error {
 	switch v := val.(type) {
 	case map[int64]struct{}:
 		for k := range v {
-			c := r.db.HGet(ctx, key, fmt.Sprint(k))
+			c := r.db.HGet(r.ctx, key, fmt.Sprint(k))
 			if c.Err() == nil {
 				if strings.Contains(c.Val(), field) {
 					continue
 				}
 
-				r.db.HSet(ctx, key, fmt.Sprint(k), c.Val()+","+field)
+				r.db.HSet(r.ctx, key, fmt.Sprint(k), c.Val()+","+field)
 				continue
 			}
-			r.db.HSet(ctx, key, fmt.Sprint(k), field)
+			r.db.HSet(r.ctx, key, fmt.Sprint(k), field)
 		}
 	case string:
-		r.db.HSet(ctx, key, field, v)
+		r.db.HSet(r.ctx, key, field, v)
 	}
 
 	return nil

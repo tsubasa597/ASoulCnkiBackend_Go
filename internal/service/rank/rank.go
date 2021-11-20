@@ -10,11 +10,13 @@ import (
 )
 
 const (
-	week int64 = iota + 1
-	threeDay
+	_week int64 = iota + 1
+	_threeDay
+)
 
-	likeNum string = "1"
-	num     string = "2"
+const (
+	_likeNum string = "1"
+	_num     string = "2"
 )
 
 func Do(r request.Rank) *response.Response {
@@ -29,9 +31,9 @@ func Do(r request.Rank) *response.Response {
 
 	// 默认查询全部时间
 	switch r.Time {
-	case week:
+	case _week:
 		r.Time = time.Now().AddDate(0, 0, -7).Unix()
-	case threeDay:
+	case _threeDay:
 		r.Time = time.Now().AddDate(0, 0, -3).Unix()
 	default:
 		r.Time = 0
@@ -39,9 +41,9 @@ func Do(r request.Rank) *response.Response {
 
 	// 默认为按总点赞数排序
 	switch r.Sort {
-	case likeNum:
+	case _likeNum:
 		r.Sort = "like_num"
-	case num:
+	case _num:
 		r.Sort = "num"
 	default:
 		r.Sort = "total_like"

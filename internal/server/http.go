@@ -8,14 +8,19 @@ import (
 	"github.com/tsubasa597/ASoulCnkiBackend/pkg/config"
 )
 
-func NewHttpServer() (*http.Server, error) {
+var (
+	HttpServer *http.Server
+)
+
+func NewHttpServer() error {
 	eng, err := routers.New()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return &http.Server{
+	HttpServer = &http.Server{
 		Addr:    fmt.Sprintf(":%d", config.Port),
 		Handler: eng,
-	}, nil
+	}
+	return nil
 }

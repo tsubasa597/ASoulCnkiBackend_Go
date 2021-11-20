@@ -16,7 +16,7 @@ type CommentCache struct {
 
 // GetContent 初始化缓存
 func GetContent(batch int, commentCaches []CommentCache, f func(tx *gorm.DB, batch int) error) error {
-	return db.Model(&entity.Comment{}).Select("rpid, content").FindInBatches(&commentCaches, batch, f).Error
+	return _db.Model(&entity.Comment{}).Select("rpid, content").FindInBatches(&commentCaches, batch, f).Error
 }
 
 // Rank 作文展数据查询
@@ -66,15 +66,15 @@ func GetTimeInfo() (int64, int64) {
 		startTime, endTime int64
 	)
 
-	db.Model(&entity.Comment{}).Select("time").Order("time desc").Limit(1).Find(&endTime)
-	db.Model(&entity.Comment{}).Select("time").Order("time asc").Limit(1).Find(&startTime)
+	_db.Model(&entity.Comment{}).Select("time").Order("time desc").Limit(1).Find(&endTime)
+	_db.Model(&entity.Comment{}).Select("time").Order("time asc").Limit(1).Find(&startTime)
 
 	return startTime, endTime
 }
 
 // getReply 查询条件拼接
 func getReply() gorm.DB {
-	return *db.Model(&entity.User{}).
+	return *_db.Model(&entity.User{}).
 		Select("dynamic.type, dynamic.rid as rid, user.uid as uuid, commentator.rpid as rpid, commentator.uid as uid, commentator.time, commentator.uname as name, comment.content, commentator.like_num, commentator.rpid as origin_rpid, comment.num, comment.total_like").
 		Joins("inner join comment on comment.dynamic_uid = user.uid").
 		Joins("left join commentator on commentator.rpid = comment.rpid").

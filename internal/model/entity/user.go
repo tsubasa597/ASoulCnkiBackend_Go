@@ -3,9 +3,9 @@ package entity
 // User 用户表
 type User struct {
 	Model
-	UID             int64  `json:"uid" gorm:"column:uid;uniqueIndex"`
-	Name            string `json:"name" gorm:"column:name"`
-	LastDynamicTime int64  `json:"dynamic_time" gorm:"column:dynamic_time"`
+	UID             int64  `gorm:"column:uid;uniqueIndex"`
+	Name            string `gorm:"column:name"`
+	LastDynamicTime int64  `gorm:"column:dynamic_time"`
 }
 
 var _ Entity = (*User)(nil)

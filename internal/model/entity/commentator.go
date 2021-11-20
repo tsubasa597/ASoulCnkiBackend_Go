@@ -7,13 +7,13 @@ import (
 // Commentator 评论人表
 type Commentator struct {
 	Model
-	UID       int64  `json:"uid" gorm:"column:uid"`
-	Name      string `json:"uname" gorm:"column:uname"`
-	LikeNum   uint32 `json:"like" gorm:"column:like_num"`
-	Time      int64  `json:"-" gorm:"column:time"`
-	DynamicID uint64 `json:"-" gorm:"index:idx_dynamic_id"`
-	Rpid      int64  `json:"rpid" gorm:"column:rpid;uniqueIndex"`
-	CommentID uint64 `json:"-" gorm:"column:comment_id"`
+	UID       int64  `gorm:"column:uid"`
+	Name      string `gorm:"column:uname"`
+	LikeNum   uint32 `gorm:"column:like_num"`
+	Time      int64  `gorm:"column:time"`
+	DynamicID uint64 `gorm:"index:idx_dynamic_id"`
+	Rpid      int64  `gorm:"column:rpid;uniqueIndex"`
+	CommentID uint64 `gorm:"column:comment_id"`
 }
 
 var (

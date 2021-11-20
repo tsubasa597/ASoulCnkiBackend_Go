@@ -40,7 +40,8 @@ func (d *Dynamic) AfterCreate(tx *gorm.DB) error {
 	user.LastDynamicTime = d.Time
 	user.Name = d.Name
 
-	return tx.Model(&user).Select("name", "dynamic_time").Where("uid = ?", d.UID).Updates(user).Error
+	return tx.Model(&user).Select("name", "dynamic_time").Where("uid = ?", d.UID).
+		Updates(user).Error
 }
 
 // GetModels 查询时返回的切片

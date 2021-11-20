@@ -10,12 +10,6 @@ import (
 	"gorm.io/gorm"
 )
 
-const (
-	CheckKey, ContentKey string = "check", "content"
-	// 初始化缓存时一次读取数据量
-	initBatch int = 10000
-)
-
 // Cacher 缓存接口
 type Cacher interface {
 	Get(string, string) (string, error)
@@ -30,32 +24,15 @@ type Cache struct {
 	Content Cacher
 }
 
-var (
-	cache Cache
+const (
+	CheckKey, ContentKey string = "check", "content"
+	// 初始化缓存时一次读取数据量
+	_initBatch int = 10000
 )
 
-// Stop 停止
-func (c Cache) Stop() string {
-	var sb strings.Builder
-
-	if err := c.Check.Save(); err != nil {
-		sb.WriteString(err.Error())
-	}
-
-	if err := c.Content.Save(); err != nil {
-		sb.WriteString(err.Error())
-	}
-
-	if err := c.Check.Stop(); err != nil {
-		sb.WriteString(err.Error())
-	}
-
-	if err := c.Content.Stop(); err != nil {
-		sb.WriteString(err.Error())
-	}
-
-	return sb.String()
-}
+var (
+	_cache Cache
+)
 
 // Setup 初始化
 func Setup() error {
@@ -69,15 +46,15 @@ func Setup() error {
 		return err
 	}
 
-	cache = Cache{
+	_cache = Cache{
 		Check:   *check,
 		Content: *content,
 	}
 
-	contents := make([]dao.CommentCache, 0, initBatch)
-	return dao.GetContent(initBatch, contents, func(tx *gorm.DB, batch int) error {
+	contents := make([]dao.CommentCache, 0, _initBatch)
+	return dao.GetContent(_initBatch, contents, func(tx *gorm.DB, batch int) error {
 		for _, content := range contents {
-			if err := cache.Store(content); err != nil {
+			if err := _cache.Store(content); err != nil {
 				return err
 			}
 		}
@@ -85,6 +62,7 @@ func Setup() error {
 	})
 }
 
+// Store 保存缓存
 func (c Cache) Store(comments interface{}) error {
 	switch comments := comments.(type) {
 	case []dao.CommentCache:
@@ -118,7 +96,30 @@ func (c Cache) Store(comments interface{}) error {
 	return nil
 }
 
-// GetCache 获取缓存实例
-func GetCache() Cache {
-	return cache
+// Stop 停止
+func (c Cache) Stop() string {
+	var sb strings.Builder
+
+	if err := c.Check.Save(); err != nil {
+		sb.WriteString(err.Error())
+	}
+
+	if err := c.Content.Save(); err != nil {
+		sb.WriteString(err.Error())
+	}
+
+	if err := c.Check.Stop(); err != nil {
+		sb.WriteString(err.Error())
+	}
+
+	if err := c.Content.Stop(); err != nil {
+		sb.WriteString(err.Error())
+	}
+
+	return sb.String()
+}
+
+// GetInstance 获取缓存实例
+func GetInstance() Cache {
+	return _cache
 }

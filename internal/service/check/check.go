@@ -15,9 +15,9 @@ import (
 )
 
 const (
-	video   string = "https://www.bilibili.com/video/av"
-	column  string = "https://www.bilibili.com/read/cv"
-	dynamic string = "https://t.bilibili.com/"
+	_video   = `https://www.bilibili.com/video/av`
+	_column  = `https://www.bilibili.com/read/cv`
+	_dynamic = `https://t.bilibili.com/`
 )
 
 // Compare 查重
@@ -28,7 +28,7 @@ func Compare(s string) response.Relateds {
 	counts := make(map[string]float64)
 
 	for _, v := range check.Hash(s) {
-		val, err := cache.GetCache().Check.Get(cache.CheckKey, fmt.Sprint(v))
+		val, err := cache.GetInstance().Check.Get(cache.CheckKey, fmt.Sprint(v))
 		if err != nil {
 			continue
 		}
@@ -43,7 +43,7 @@ func Compare(s string) response.Relateds {
 	for id, count := range counts {
 		charNum := utf8.RuneCountInString(s)
 
-		content, err := cache.GetCache().Content.Get(cache.ContentKey, id)
+		content, err := cache.GetInstance().Content.Get(cache.ContentKey, id)
 		if err != nil {
 			continue
 		}
@@ -93,11 +93,11 @@ func Compare(s string) response.Relateds {
 func buildURL(typ info.Type, rid, rpid int64) string {
 	switch typ {
 	case info.CommentViedo:
-		return fmt.Sprintf("%s%d#reply%d", video, rid, rpid)
+		return fmt.Sprintf("%s%d#reply%d", _video, rid, rpid)
 	case info.CommentColumn:
-		return fmt.Sprintf("%s%d#reply%d", column, rid, rpid)
+		return fmt.Sprintf("%s%d#reply%d", _column, rid, rpid)
 	case info.CommentDynamic:
-		return fmt.Sprintf("%s%d#reply%d", dynamic, rid, rpid)
+		return fmt.Sprintf("%s%d#reply%d", _dynamic, rid, rpid)
 	default:
 		return ""
 	}

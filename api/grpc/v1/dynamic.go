@@ -41,6 +41,17 @@ var (
 	}
 )
 
+func NewDynamic(ctx context.Context, uid, t int64, log *logrus.Logger) *RPCDynamic {
+	return &RPCDynamic{
+		UID:      uid,
+		Time:     t,
+		Ctx:      ctx,
+		timeCell: time.Duration(config.DynamicDuration),
+		log:      log,
+		state:    state.Runing,
+	}
+}
+
 func (r *RPCDynamic) Run(ch chan<- interface{}) {
 	if r.state == state.Stop {
 		return
@@ -91,15 +102,4 @@ func (r RPCDynamic) State() state.State {
 // Next 下次运行时间
 func (r RPCDynamic) Next(t time.Time) time.Time {
 	return t.Add(time.Minute * r.timeCell)
-}
-
-func NewDynamic(ctx context.Context, uid, t int64, log *logrus.Logger) *RPCDynamic {
-	return &RPCDynamic{
-		UID:      uid,
-		Time:     t,
-		Ctx:      ctx,
-		timeCell: time.Duration(config.DynamicDuration),
-		log:      log,
-		state:    state.Runing,
-	}
 }
