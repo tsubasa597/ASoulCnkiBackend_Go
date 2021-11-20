@@ -3,7 +3,7 @@ package check
 import (
 	"container/heap"
 
-	"github.com/tsubasa597/ASoulCnkiBackend/pkg/setting"
+	"github.com/tsubasa597/ASoulCnkiBackend/pkg/config"
 )
 
 // CompareResult 查重结果
@@ -43,8 +43,8 @@ func (r *CompareResults) Pop() interface{} {
 
 // Push 推入
 func (r *CompareResults) Push(data interface{}) {
-	if len(*r) == setting.HeapLength {
-		*r = (*r)[:setting.HeapLength-1]
+	if len(*r) == config.HeapLength {
+		r.Pop()
 	}
 	*r = append(*r, data.(CompareResult))
 }
