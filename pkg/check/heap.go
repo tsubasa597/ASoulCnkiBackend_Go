@@ -26,7 +26,7 @@ func (r CompareResults) Less(i, j int) bool {
 		return r[i].ID < r[j].ID
 	}
 
-	return r[i].Similarity > r[j].Similarity
+	return r[i].Similarity < r[j].Similarity
 }
 
 func (r CompareResults) Swap(i, j int) {

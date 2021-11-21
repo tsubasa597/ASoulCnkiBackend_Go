@@ -7,7 +7,6 @@ import (
 	"github.com/tsubasa597/ASoulCnkiBackend/internal/dao"
 	"github.com/tsubasa597/ASoulCnkiBackend/pkg/check"
 	"github.com/tsubasa597/BILIBILI-HELPER/info"
-	"gorm.io/gorm"
 )
 
 // Cacher 缓存接口
@@ -27,7 +26,7 @@ type Cache struct {
 const (
 	CheckKey, ContentKey string = "check", "content"
 	// 初始化缓存时一次读取数据量
-	_initBatch int = 10000
+	_initBatch int = 100000
 )
 
 var (
@@ -51,12 +50,9 @@ func Setup() error {
 		Content: *content,
 	}
 
-	contents := make([]dao.CommentCache, 0, _initBatch)
-	return dao.GetContent(_initBatch, contents, func(tx *gorm.DB, batch int) error {
-		for _, content := range contents {
-			if err := _cache.Store(content); err != nil {
-				return err
-			}
+	return dao.GetContent(_initBatch, func(contents []dao.CommentCache) error {
+		if err := _cache.Store(contents); err != nil {
+			return err
 		}
 		return nil
 	})
@@ -101,15 +97,15 @@ func (c Cache) Stop() string {
 	var sb strings.Builder
 
 	if err := c.Check.Save(); err != nil {
-		sb.WriteString(err.Error())
+		sb.WriteString(err.Error() + "\n")
 	}
 
 	if err := c.Content.Save(); err != nil {
-		sb.WriteString(err.Error())
+		sb.WriteString(err.Error() + "\n")
 	}
 
 	if err := c.Check.Stop(); err != nil {
-		sb.WriteString(err.Error())
+		sb.WriteString(err.Error() + "\n")
 	}
 
 	if err := c.Content.Stop(); err != nil {

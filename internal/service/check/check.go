@@ -3,6 +3,7 @@ package check
 import (
 	"container/heap"
 	"fmt"
+	"sort"
 	"strings"
 	"unicode/utf8"
 
@@ -62,25 +63,33 @@ func Compare(s string) response.Relateds {
 	}
 
 	for len(commResults) > 0 {
-		comresult := commResults.Pop().(check.CompareResult)
-		if comresult.Similarity < 0.2 {
+		result := heap.Pop(&commResults).(check.CompareResult)
+		if result.Similarity < 0.2 {
 			break
 		}
 
-		reply, err := dao.Check(comresult.ID)
+		reply, err := dao.Check(result.ID)
 		if err != nil {
 			continue
 		}
 
 		related.Related = append(related.Related, response.Related{
-			Rate:  comresult.Similarity,
+			Rate:  result.Similarity,
 			Reply: reply,
 			URL:   buildURL(info.Type(reply.Type), reply.Rid, reply.Rpid),
 		})
 	}
 
-	if len(commResults) > 0 {
-		related.Rate = commResults[0].Similarity
+	sort.Slice(related.Related, func(i, j int) bool {
+		if related.Related[i].Rate == related.Related[j].Rate {
+			return related.Related[i].Reply.Rid < related.Related[j].Reply.Rid
+		}
+
+		return related.Related[i].Rate > related.Related[j].Rate
+	})
+
+	if len(related.Related) > 0 {
+		related.Rate = related.Related[0].Rate
 	}
 
 	startTime, endTime := dao.GetTimeInfo()

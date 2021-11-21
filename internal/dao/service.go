@@ -15,8 +15,29 @@ type CommentCache struct {
 }
 
 // GetContent 初始化缓存
-func GetContent(batch int, commentCaches []CommentCache, f func(tx *gorm.DB, batch int) error) error {
-	return _db.Model(&entity.Comment{}).Select("rpid, content").FindInBatches(&commentCaches, batch, f).Error
+func GetContent(batch int, f func([]CommentCache) error) error {
+	var (
+		offect        int
+		commentCaches = make([]CommentCache, 0, batch)
+	)
+	for {
+		result := _db.Model(&entity.Comment{}).Select("rpid, content").
+			Limit(batch).Offset(offect).Find(&commentCaches)
+
+		if result.RowsAffected == 0 {
+			return nil
+		}
+
+		if result.Error != nil {
+			return result.Error
+		}
+
+		if err := f(commentCaches); err != nil {
+			return err
+		}
+
+		offect += batch
+	}
 }
 
 // Rank 作文展数据查询
