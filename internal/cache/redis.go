@@ -2,9 +2,7 @@ package cache
 
 import (
 	"context"
-	"fmt"
-	"strings"
-	"sync"
+	"strconv"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/tsubasa597/ASoulCnkiBackend/pkg/config"
@@ -12,9 +10,8 @@ import (
 
 // Redis 缓存
 type Redis struct {
-	db    *redis.Client
-	mutex *sync.Mutex
-	ctx   context.Context
+	db  *redis.Client
+	ctx context.Context
 }
 
 var (
@@ -35,9 +32,8 @@ func NewRedis() (*Redis, error) {
 	}
 
 	return &Redis{
-		db:    db,
-		mutex: &sync.Mutex{},
-		ctx:   ctx,
+		db:  db,
+		ctx: ctx,
 	}, nil
 }
 
@@ -52,25 +48,40 @@ func (r Redis) Save() error {
 }
 
 // Increment 添加数据
-func (r Redis) Increment(key string, field string, val interface{}) error {
-	r.mutex.Lock()
-	defer r.mutex.Unlock()
-
-	switch v := val.(type) {
+func (r Redis) Increment(key string, field string, value interface{}) error {
+	switch val := value.(type) {
 	case map[int64]struct{}:
-		for k := range v {
-			c := r.db.HGet(r.ctx, key, fmt.Sprint(k))
-			if c.Err() == nil {
-				if strings.Contains(c.Val(), field) {
+		for k := range val {
+			res := map[int64]struct{}{k: {}}
+
+			b, err := r.db.HGet(r.ctx, key, strconv.Itoa(int(k))).Bytes()
+			if err != nil {
+				v, err := Serialize(res)
+				if err != nil {
 					continue
 				}
 
-				r.db.HSet(r.ctx, key, fmt.Sprint(k), c.Val()+","+field)
+				r.db.HSet(r.ctx, key, strconv.Itoa(int(k)), v)
 				continue
 			}
-			r.db.HSet(r.ctx, key, fmt.Sprint(k), field)
+
+			if err := Deserialize(b, &res); err != nil {
+				continue
+			}
+
+			v, err := Serialize(res)
+			if err != nil {
+				continue
+			}
+
+			r.db.HSet(r.ctx, key, strconv.Itoa(int(k)), v)
 		}
 	case string:
+		v, err := Serialize(val)
+		if err != nil {
+			return err
+		}
+
 		r.db.HSet(r.ctx, key, field, v)
 	}
 
